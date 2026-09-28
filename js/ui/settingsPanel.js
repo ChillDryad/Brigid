@@ -79,10 +79,12 @@ function toggleSettingsPanel() {
     const isActive = panel.classList.contains('active');
     if (isActive) {
         panel.classList.remove('active');
+        document.body.classList.remove('overlay-open');
         saveState();
         showToast("Settings saved!", "success");
     } else {
         panel.classList.add('active');
+        document.body.classList.add('overlay-open');
         requestAnimationFrame(syncInputs);
     }
 }

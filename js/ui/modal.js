@@ -49,6 +49,7 @@ export function showModal(title, html, confirmIcon, action, isDestructive = fals
 
     currentAction = action;
     overlay.classList.add('active');
+    document.body.classList.add('overlay-open');
 
     // Auto-focus first input
     const input = els.content().querySelector('input');
@@ -58,5 +59,6 @@ export function showModal(title, html, confirmIcon, action, isDestructive = fals
 export function closeModal() {
     const overlay = els.overlay();
     if (overlay) overlay.classList.remove('active');
+    document.body.classList.remove('overlay-open');
     currentAction = null;
 }
