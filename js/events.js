@@ -18,6 +18,24 @@ export function initGlobalEvents() {
     const dashboard = qs('#dashboard');
     if (!dashboard) { setTimeout(initGlobalEvents, 100); return; }
 
+    dashboard.addEventListener('click', async (e) => {
+        if (!state.ui.editMode) return;
+        const direction = e.target.closest('.mobile-move-up, .mobile-move-down');
+        if (!direction) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const card = direction.closest('.app-card');
+        const index = state.apps.findIndex((app) => app.id === Number(card?.dataset.id));
+        const targetIndex = direction.classList.contains('mobile-move-up') ? index - 1 : index + 1;
+        if (index < 0 || targetIndex < 0 || targetIndex >= state.apps.length) return;
+        const reordered = [...state.apps];
+        [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
+        setState('apps', reordered);
+        saveGridState();
+        await renderGrid();
+        showToast(targetIndex < index ? "Card moved up" : "Card moved down", "success");
+    });
+
     dashboard.addEventListener('mousedown', e => {
         if (!state.ui.editMode) return;
         if (e.target.closest('.delete-btn') || e.target.closest('.edit-btn')) return;

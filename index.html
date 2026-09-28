@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hestia</title>
+    <meta name="theme-color" content="#cba6f7">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Brigid">
+    <title>Brigid</title>
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="/icons/brigid-180.png">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel= "stylesheet" href= "https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" >
@@ -21,8 +28,12 @@
 
     <!-- Header / Toolbar -->
     <header>
-        <h1 id="headerTitle"><i class="fa-solid fa-fire"></i> HESTIA</h1>
+        <h1 id="headerTitle"><i class="fa-solid fa-fire-flame-curved"></i> BRIGID</h1>
+        <span id="identityBadge" class="identity-badge" aria-live="polite"></span>
         <div class="toolbar">
+            <button class="btn btn-icon" id="installBtn" title="Install Brigid" aria-label="Install Brigid" hidden>
+                <i class="fa-solid fa-mobile-screen-button"></i>
+            </button>
             <button class="btn btn-icon btn-error" id="clearBtn" title="Clear Dashboard" disabled>
                 <i class="fa-solid fa-eraser"></i>
             </button>
@@ -75,7 +86,7 @@
                         <div class="setting-row">
                             <span class="setting-label">Title</span>
                             <div class="setting-controls">
-                                <input type="text" class="setting-val" id="input-titleBarText" data-default="HESTIA">
+                                <input type="text" class="setting-val" id="input-titleBarText" data-default="BRIGID">
                                 <i class="fa-solid fa-rotate-left reset-icon" id="reset-titleBarText"></i>
                             </div>
                         </div>
@@ -83,7 +94,7 @@
                         <div class="setting-row">
                             <span class="setting-label">Icon</span>
                             <div class="setting-controls">
-                                <input type="text" class="setting-val" id="input-titleBarIcon" data-default="fa-fire" title="FontAwesome class">
+                                <input type="text" class="setting-val" id="input-titleBarIcon" data-default="fa-fire-flame-curved" title="FontAwesome class">
                                 <i class="fa-solid fa-rotate-left reset-icon" id="reset-titleBarIcon"></i>
                             </div>
                         </div>
@@ -219,7 +230,7 @@
             </div>
         </div>
         <div class="settings-footer">
-            Hestia-core v0.1.0 &nbsp; <i class="fa-solid fa-heart" style="color:var(--status-error);"></i> &nbsp; <a href="https://github.com/mult1v4c/hestia-core" target="_blank"><i class="fa-brands fa-github"></i></a>
+            Brigid &nbsp; <i class="fa-solid fa-fire-flame-curved" style="color:var(--brand-primary);"></i> &nbsp; <a href="https://github.com/Sterahi/Brigid" target="_blank" rel="noreferrer"><i class="fa-brands fa-github"></i></a>
         </div>
 
         <!-- Hidden Native Inputs for Color Pickers -->

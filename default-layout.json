@@ -1,0 +1,18 @@
+{
+  "apps": [
+    {"id":1010,"name":"Clock","subtype":"clock","type":"static","x":1,"y":1,"cols":4,"rows":2,"data":{"format":"12","mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1013,"name":"TTC Commute","subtype":"ttc-commute","type":"static","x":5,"y":1,"cols":3,"rows":1,"data":{"interval":"120000","mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1012,"name":"GPU","subtype":"gpu-stats","type":"static","x":8,"y":1,"cols":3,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1001,"name":"Komodo Server","subtype":"komodo-stats","type":"static","x":5,"y":2,"cols":6,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1002,"name":"Lesflix","subtype":"link","type":"static","x":1,"y":3,"cols":2,"rows":1,"data":{"url":"https://lesflix.dryad.nexus","icon":"film","mobileCols":1,"bgColor":"var(--base0D)","textColor":"var(--base00)"}},
+    {"id":1003,"name":"Lesseer","subtype":"link","type":"static","x":3,"y":3,"cols":2,"rows":1,"data":{"url":"https://lesseer.dryad.nexus","icon":"wand-magic-sparkles","mobileCols":1,"bgColor":"var(--base0E)","textColor":"var(--base00)"}},
+    {"id":1004,"name":"BookLore","subtype":"link","type":"static","x":5,"y":3,"cols":2,"rows":1,"data":{"url":"https://booklore.dryad.nexus","icon":"book-open","mobileCols":1,"bgColor":"var(--base09)","textColor":"var(--base00)"}},
+    {"id":1005,"name":"Shelfmark","subtype":"link","type":"static","x":7,"y":3,"cols":2,"rows":1,"data":{"url":"https://shelfmark.dryad.nexus","icon":"bookmark","mobileCols":1,"bgColor":"var(--base0A)","textColor":"var(--base00)"}},
+    {"id":1006,"name":"SuggestArr","subtype":"link","type":"static","x":9,"y":3,"cols":2,"rows":1,"data":{"url":"https://suggestarr.dryad.nexus","icon":"lightbulb","mobileCols":1,"bgColor":"var(--base0B)","textColor":"var(--base00)"}},
+    {"id":1007,"name":"Pocket ID","subtype":"link","type":"static","x":1,"y":4,"cols":2,"rows":1,"data":{"url":"https://auth.dryad.nexus","icon":"key","mobileCols":1,"bgColor":"var(--base0C)","textColor":"var(--base00)"}},
+    {"id":1008,"name":"Homepage","subtype":"link","type":"static","x":3,"y":4,"cols":2,"rows":1,"data":{"url":"https://home.dryad.nexus","icon":"gauge-high","adminOnly":true,"mobileCols":1,"bgColor":"var(--base08)","textColor":"var(--base00)"}},
+    {"id":1011,"name":"Calendar","subtype":"calendar","type":"static","x":5,"y":4,"cols":3,"rows":2,"data":{"mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1009,"name":"The hearth","subtype":"note","type":"static","x":8,"y":4,"cols":3,"rows":2,"data":{"title":"Welcome home","text":"Brigid is your household starting place.\n\n*Media, books, recommendations, and a quiet view of the hearth—without turning this into an operations console.*","mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}}
+  ],
+  "settings": {"theme":{"activePalette":"catppuccin-mocha","titleBarIcon":"fa-fire-flame-curved","titleBarText":"BRIGID"}}
+}

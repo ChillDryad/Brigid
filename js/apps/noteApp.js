@@ -78,6 +78,26 @@ registry.register('note', NoteApp, {
             height: auto;
         }
 
+        /* On the mobile card stack, notes become document-like content rather
+           than a fixed grid cell with an inner scrollbar. */
+        @media (max-width: 768px) {
+            .app-type-note {
+                position: relative;
+                height: auto;
+                min-height: 150px;
+                overflow: visible;
+            }
+
+            .note-paper {
+                flex: none;
+                overflow: visible;
+                min-height: 0;
+            }
+
+            .app-card[data-cols="1"] .note-paper { min-width: 0; }
+            .app-card[data-rows="1"] .note-paper { min-height: 0; }
+        }
+
         .note-editor {
             flex: 1; width: 100%; height: 100%;
             box-sizing: border-box; padding: 10px;

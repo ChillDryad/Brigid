@@ -1,0 +1,19 @@
+services:
+  brigid:
+    image: ghcr.io/sterahi/brigid:latest
+    container_name: brigid
+    restart: unless-stopped
+    env_file:
+      - /portainer/Files/AppData/Config/brigid/brigid.env
+    volumes:
+      - /portainer/Files/AppData/Config/brigid/data:/data
+      - /portainer/Files/AppData/Config/brigid/default-layout.json:/config/default-layout.json:ro
+    expose:
+      - "8000"
+    networks:
+      - caddy-homelab
+
+networks:
+  caddy-homelab:
+    external: true
+    name: caddy-homelab

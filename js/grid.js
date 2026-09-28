@@ -69,6 +69,7 @@ export async function renderGrid(dragInfo = null) {
 
                 if (app.data?.bgColor) el.style.backgroundColor = app.data.bgColor;
                 if (app.data?.textColor) el.style.color = app.data.textColor;
+                el.style.setProperty('--mobile-cols', Number(app.data?.mobileCols) === 1 ? 1 : 2);
 
                 if (dataHash !== currentHash) {
                     await mountAppContent(el, app);
@@ -76,6 +77,8 @@ export async function renderGrid(dragInfo = null) {
                 }
 
                 domMap.delete(app.id);
+                // DOM order is the mobile list order; CSS grid placement keeps desktop unchanged.
+                dashboard.appendChild(el);
             } else {
                 // CREATE NEW
                 el = await createAppElement(app);
@@ -128,6 +131,7 @@ async function createAppElement(app) {
 
     if (app.data?.bgColor) el.style.backgroundColor = app.data.bgColor;
     if (app.data?.textColor) el.style.color = app.data.textColor;
+    el.style.setProperty('--mobile-cols', Number(app.data?.mobileCols) === 1 ? 1 : 2);
 
     el.dataset.contentHash = JSON.stringify(app.data || {}) + app.name;
 
@@ -148,6 +152,10 @@ async function mountAppContent(el, app) {
             ${innerHTML}
             <div class="resize-handle"></div>
             <div class="card-meta">${app.cols}x${app.rows}</div>
+            <div class="mobile-edit-controls" aria-label="Reorder card">
+                <button class="mobile-move-up" title="Move card up" aria-label="Move card up"><i class="fa-solid fa-arrow-up"></i></button>
+                <button class="mobile-move-down" title="Move card down" aria-label="Move card down"><i class="fa-solid fa-arrow-down"></i></button>
+            </div>
             <div class="edit-btn" title="Edit App"><i class="fa-solid fa-pencil"></i></div>
             <div class="delete-btn" title="Delete App"><i class="fa-solid fa-trash"></i></div>
         `;

@@ -16,10 +16,18 @@ import './apps/appIndex.js';
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
-    logger.info("Hestia-Core: Booting...");
+    logger.info("Brigid: Booting...");
 
-    // 1. Load Data
-    const savedState = loadState();
+    // 1. Resolve identity before loading role-filtered dashboard data.
+    const currentUser = await fetch("/api/me", { credentials: "same-origin" })
+        .then((response) => response.ok ? response.json() : null)
+        .catch(() => null);
+    setState("user", currentUser);
+    const badge = qs("#identityBadge");
+    if (badge && currentUser) badge.textContent = currentUser.displayName || currentUser.identity;
+
+    // 2. Load Data
+    const savedState = await loadState();
 
     // Population Safety Check: If apps are missing, load defaults
     if (savedState.apps === undefined) {
@@ -36,31 +44,79 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.palettes = window.HESTIA_PALETTES;
     }
 
-    // 2. Apply Theme
+    // 3. Apply Theme
     applyTheme(state.settings.theme);
 
-    // 3. Render Dashboard
+    // 4. Render Dashboard
     await renderGrid();
 
-    // 4. Initialize UI Modules
+    // 5. Initialize UI Modules
     initModal();
     initGlobalEvents();
     initSettingsPanel();
     initAppEditor();
 
-    // 5. Wire up Header Buttons
+    // 6. Wire up Header Buttons
     wireUpToolbar();
+    initInstallExperience();
 
     // 6. Wire up Inline Renaming (Feature Parity)
     wireUpRenaming();
 
     wireUpNoteEditing();
 
-    logger.success("Hestia-Core: Ready.");
+    logger.success("Brigid: Ready.");
 
     // Expose for debugging
     window.__APP__ = { state, renderGrid, toggleEditMode, logger };
 });
+
+function initInstallExperience() {
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+            logger.warn("Brigid: service worker registration failed", error);
+        });
+    }
+
+    const installButton = qs("#installBtn");
+    if (!installButton) return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    let deferredPrompt = null;
+    window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        installButton.hidden = false;
+    });
+
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos) installButton.hidden = false;
+
+    installButton.onclick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const choice = await deferredPrompt.userChoice;
+            if (choice.outcome === "accepted") installButton.hidden = true;
+            deferredPrompt = null;
+            return;
+        }
+        if (isIos) {
+            showModal(
+                "Install Brigid",
+                "<p>Tap <strong>Share</strong> in Safari, then choose <strong>Add to Home Screen</strong>.</p>",
+                '<i class="fa-solid fa-mobile-screen-button"></i>',
+                () => {},
+                false,
+            );
+        }
+    };
+
+    window.addEventListener("appinstalled", () => {
+        installButton.hidden = true;
+        showToast("Brigid installed", "success");
+    });
+}
 
 function wireUpToolbar() {
     const editBtn = qs('#editBtn');

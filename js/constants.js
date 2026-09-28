@@ -2,7 +2,7 @@
 // Default configuration values
 
 export const DEFAULT_THEME = {
-    activePalette: "default-dark",
+    activePalette: "catppuccin-mocha",
 
     // Geometry
     gridColumns: 10,
@@ -15,8 +15,8 @@ export const DEFAULT_THEME = {
     // UI Toggles
     outlines: true,
     shadow: true,
-    titleBarIcon: "fa-fire",
-    titleBarText: "HESTIA",
+    titleBarIcon: "fa-fire-flame-curved",
+    titleBarText: "BRIGID",
 
     // Semantic Colors (Defaults)
     bgCanvas: "#181818",
@@ -42,6 +42,21 @@ export const DEFAULT_THEME = {
 
 export const DEFAULT_APPS = [
     {
+      "id": 1764067000000,
+      "name": "Komodo Server",
+      "subtype": "komodo-stats",
+      "type": "static",
+      "x": 1,
+      "y": 2,
+      "cols": 2,
+      "rows": 1,
+      "data": {
+        "interval": "15000",
+        "bgColor": "var(--bg-surface)",
+        "textColor": "var(--text-main)"
+      }
+    },
+    {
       "id": 1764067661194,
       "name": "Note app",
       "subtype": "note",
@@ -53,7 +68,7 @@ export const DEFAULT_APPS = [
       "data": {
         "bgColor": "var(--bg-surface)",
         "textColor": "var(--text-main)",
-        "title": "Welcome to 🔥 Hestia!",
+        "title": "Welcome to 🔥 Brigid!",
         "text": "*To start:*\n[ :fa-solid fa-pen-to-square: ] Enter Edit Mode\n[ :fa-solid fa-floppy-disk: ] Save changes and exit\n\n*While in Edit mode:*\n[ :fa-solid fa-plus: ] Add app.\n[ :fa-solid fa-eraser: ] clear all apps.\n[ :fa-solid fa-gear: ] change dashboard settings.\n\n[ :fa-solid fa-arrow-pointer: ] Double-click note to edit"
       }
     },
@@ -128,7 +143,7 @@ export const DEFAULT_APPS = [
       "cols": 1,
       "rows": 1,
       "data": {
-        "url": "https://github.com/mult1v4c/hestia-core",
+        "url": "https://github.com/Sterahi/Brigid",
         "icon": "github",
         "bgColor": "var(--base06)",
         "textColor": "var(--base01)",
