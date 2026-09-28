@@ -79,6 +79,16 @@ To restrict an individual layout card, set `"adminOnly": true` in that card's
 returns `403` from protected server-side telemetry endpoints. The starter
 layout marks Komodo, GPU telemetry, and Homepage as administrator-only.
 
+## TTC Commute Sentinel
+
+The optional TTC widget reads the official TTC GTFS-Realtime alert feed on the
+server and shows only alerts matching configured route and/or stop IDs. It does
+not need a home or work address. Set `TTC_COMMUTE_ROUTES` (for example `1,2`)
+and optionally `TTC_COMMUTE_STOPS`; leave both blank until configured, which
+makes the card show a safe setup state. The first release is an alert watcher,
+not a travel-time prediction engine: it reports route impact and feed outages
+without inventing a departure-time estimate.
+
 ## Home-screen install
 
 Brigid ships as an installable Progressive Web App. Serve it through the normal

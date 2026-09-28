@@ -175,6 +175,21 @@
       }
     },
     {
+      "id": 1013,
+      "name": "TTC Commute",
+      "subtype": "ttc-commute",
+      "type": "static",
+      "x": 5,
+      "y": 3,
+      "cols": 2,
+      "rows": 1,
+      "data": {
+        "interval": "120000",
+        "bgColor": "var(--bg-surface)",
+        "textColor": "var(--text-main)"
+      }
+    },
+    {
       "id": 1012,
       "name": "GPU",
       "subtype": "gpu-stats",

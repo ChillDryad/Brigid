@@ -8,6 +8,7 @@ import './helloWorld.js';
 import './glancesApp.js';
 import './komodoStatsApp.js';
 import './gpuStatsApp.js';
+import './ttcCommuteApp.js';
 import './piholeApp.js';
 import './delugeApp.js';
 import './jellyfinApp.js';

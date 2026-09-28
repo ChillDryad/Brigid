@@ -23,6 +23,7 @@ from typing import Any
 import httpx
 from authlib.jose import jwt
 from cryptography.fernet import Fernet, InvalidToken
+from google.transit import gtfs_realtime_pb2
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -512,6 +513,52 @@ def delete_profile(request: Request) -> Response:
     with database() as connection:
         connection.execute("DELETE FROM profiles WHERE identity = ?", (identity,))
     return Response(status_code=204)
+
+
+@app.get("/api/commute/ttc")
+async def ttc_commute_status(request: Request) -> dict[str, Any]:
+    """Return official TTC alerts that intersect the configured commute."""
+    routes = {item.strip() for item in os.getenv("TTC_COMMUTE_ROUTES", "").split(",") if item.strip()}
+    stops = {item.strip() for item in os.getenv("TTC_COMMUTE_STOPS", "").split(",") if item.strip()}
+    if not routes and not stops:
+        raise HTTPException(status_code=503, detail="TTC commute monitoring is not configured")
+
+    feed_url = os.getenv("TTC_ALERTS_URL", "https://bustime.ttc.ca/gtfsrt/alerts").strip()
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(feed_url)
+            response.raise_for_status()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=503, detail="TTC alerts are temporarily unavailable") from exc
+
+    feed = gtfs_realtime_pb2.FeedMessage()
+    feed.ParseFromString(response.content)
+    alerts: list[dict[str, Any]] = []
+    severe_effects = {"NO_SERVICE", "SIGNIFICANT_DELAYS", "DETOUR", "STOP_MOVED"}
+    for entity in feed.entity:
+        if not entity.HasField("alert"):
+            continue
+        alert = entity.alert
+        selectors = list(alert.informed_entity)
+        alert_routes = {selector.route_id for selector in selectors if selector.route_id}
+        alert_stops = {selector.stop_id for selector in selectors if selector.stop_id}
+        if selectors and not (routes & alert_routes or stops & alert_stops):
+            continue
+        headline = alert.header_text.translation[0].text if alert.header_text.translation else "TTC service alert"
+        description = alert.description_text.translation[0].text if alert.description_text.translation else headline
+        effect = gtfs_realtime_pb2.Alert.Effect.Name(alert.effect) if alert.HasField("effect") else "UNKNOWN_EFFECT"
+        alerts.append({
+            "id": entity.id,
+            "headline": headline,
+            "description": description,
+            "effect": effect,
+            "severity": "action" if effect in severe_effects else "watch",
+            "routes": sorted(alert_routes),
+            "stops": sorted(alert_stops),
+        })
+
+    severity = "normal" if not alerts else ("action" if any(alert["severity"] == "action" for alert in alerts) else "watch")
+    return {"status": severity, "alerts": alerts, "updatedAt": feed.header.timestamp or int(time.time())}
 
 
 @app.get("/")
