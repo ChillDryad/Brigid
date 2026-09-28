@@ -58,6 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 6. Wire up Header Buttons
     wireUpToolbar();
+    initInstallExperience();
 
     // 6. Wire up Inline Renaming (Feature Parity)
     wireUpRenaming();
@@ -69,6 +70,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Expose for debugging
     window.__APP__ = { state, renderGrid, toggleEditMode, logger };
 });
+
+function initInstallExperience() {
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+            logger.warn("Brigid: service worker registration failed", error);
+        });
+    }
+
+    const installButton = qs("#installBtn");
+    if (!installButton) return;
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    if (isStandalone) return;
+
+    let deferredPrompt = null;
+    window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredPrompt = event;
+        installButton.hidden = false;
+    });
+
+    const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIos) installButton.hidden = false;
+
+    installButton.onclick = async () => {
+        if (deferredPrompt) {
+            deferredPrompt.prompt();
+            const choice = await deferredPrompt.userChoice;
+            if (choice.outcome === "accepted") installButton.hidden = true;
+            deferredPrompt = null;
+            return;
+        }
+        if (isIos) {
+            showModal(
+                "Install Brigid",
+                "<p>Tap <strong>Share</strong> in Safari, then choose <strong>Add to Home Screen</strong>.</p>",
+                '<i class="fa-solid fa-mobile-screen-button"></i>',
+                () => {},
+                false,
+            );
+        }
+    };
+
+    window.addEventListener("appinstalled", () => {
+        installButton.hidden = true;
+        showToast("Brigid installed", "success");
+    });
+}
 
 function wireUpToolbar() {
     const editBtn = qs('#editBtn');

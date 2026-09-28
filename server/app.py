@@ -80,7 +80,7 @@ async def browser_cache_policy(request: Request, call_next: Any) -> Response:
     path = request.url.path
     if path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
-    elif path == "/" or path.endswith((".html", ".js", ".css")):
+    elif path == "/" or path.endswith((".html", ".js", ".css", ".webmanifest", ".png", ".svg")):
         response.headers["Cache-Control"] = "no-cache, must-revalidate"
     return response
 

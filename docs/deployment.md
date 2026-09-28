@@ -79,6 +79,15 @@ To restrict an individual layout card, set `"adminOnly": true` in that card's
 returns `403` from protected server-side telemetry endpoints. The starter
 layout marks Komodo, GPU telemetry, and Homepage as administrator-only.
 
+## Home-screen install
+
+Brigid ships as an installable Progressive Web App. Serve it through the normal
+HTTPS Caddy route, open it once online, then use the header phone icon to
+install it in Chromium-based browsers. On iPhone/iPad Safari, tap the icon for
+the exact **Share → Add to Home Screen** instruction. The service worker never
+caches API or authentication routes; it keeps a network-first offline copy of
+the dashboard shell only.
+
 ## Security model
 
 - Pocket ID owns user creation, sign-in, and MFA/passkeys.
