@@ -20,6 +20,17 @@ body {
     transition: background-color 0.3s, color 0.3s, font-family 0.3s;
 }
 
+/* The desktop dashboard is intentionally viewport-locked. Mobile uses a
+   vertical card list, so content must be able to grow beyond the viewport. */
+@media (max-width: 768px) {
+    body {
+        height: auto;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+}
+
 /* Global Scrollbar Styling (Optional but nice) */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
