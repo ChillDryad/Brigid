@@ -18,6 +18,15 @@ h1 {
 
 .toolbar { display: flex; gap: 10px; align-items: center; }
 
+.identity-badge {
+    margin-left: auto; margin-right: 16px; max-width: 28ch;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    color: var(--text-muted); font-size: 0.78rem;
+    border: 1px solid var(--border-dim); border-radius: 999px;
+    padding: 5px 9px; background: color-mix(in srgb, var(--bg-canvas) 60%, transparent);
+}
+.identity-badge:empty { display: none; }
+
 /* --- DASHBOARD GRID --- */
 .dashboard-container {
     flex: 1;
@@ -52,4 +61,5 @@ h1 {
 @media (max-width: 768px) {
     .dashboard-container { display: flex; flex-direction: column; height: auto; }
     .grid-lines { display: none; }
+    .identity-badge { display: none; }
 }

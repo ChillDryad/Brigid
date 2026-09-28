@@ -200,6 +200,27 @@ window.HESTIA_PALETTES = {
   	"name": "Catppuccin Macchiato",
   	"slug": "catppuccin-macchiato"
   },
+  "catppuccin-latte": {
+    "base00": "eff1f5", "base01": "e6e9ef", "base02": "dce0e8", "base03": "9ca0b0",
+    "base04": "8c8fa1", "base05": "4c4f69", "base06": "dc8a78", "base07": "bcc0cc",
+    "base08": "d20f39", "base09": "fe640b", "base0A": "df8e1d", "base0B": "40a02b",
+    "base0C": "179299", "base0D": "1e66f5", "base0E": "8839ef", "base0F": "dd7878",
+    "name": "Catppuccin Latte", "slug": "catppuccin-latte"
+  },
+  "catppuccin-frappe": {
+    "base00": "303446", "base01": "414559", "base02": "51576d", "base03": "626880",
+    "base04": "a5adce", "base05": "c6d0f5", "base06": "f2d5cf", "base07": "b5bfe2",
+    "base08": "e78284", "base09": "ef9f76", "base0A": "e5c890", "base0B": "a6d189",
+    "base0C": "81c8be", "base0D": "8caaee", "base0E": "ca9ee6", "base0F": "eebebe",
+    "name": "Catppuccin Frappé", "slug": "catppuccin-frappe"
+  },
+  "catppuccin-mocha": {
+    "base00": "1e1e2e", "base01": "313244", "base02": "45475a", "base03": "585b70",
+    "base04": "a6adc8", "base05": "cdd6f4", "base06": "f5e0dc", "base07": "b4befe",
+    "base08": "f38ba8", "base09": "fab387", "base0A": "f9e2af", "base0B": "a6e3a1",
+    "base0C": "94e2d5", "base0D": "89b4fa", "base0E": "cba6f7", "base0F": "f2cdcd",
+    "name": "Catppuccin Mocha", "slug": "catppuccin-mocha"
+  },
 
   "one-dark": {
     "base00": "282c34",

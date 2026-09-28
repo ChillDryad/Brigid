@@ -16,10 +16,10 @@ import './apps/appIndex.js';
 
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
-    logger.info("Hestia-Core: Booting...");
+    logger.info("Brigid: Booting...");
 
     // 1. Load Data
-    const savedState = loadState();
+    const savedState = await loadState();
 
     // Population Safety Check: If apps are missing, load defaults
     if (savedState.apps === undefined) {
@@ -35,6 +35,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (window.HESTIA_PALETTES) {
         state.palettes = window.HESTIA_PALETTES;
     }
+
+    fetch("/api/me", { credentials: "same-origin" })
+        .then((response) => response.ok ? response.json() : null)
+        .then((user) => {
+            const badge = qs("#identityBadge");
+            if (badge && user) badge.textContent = user.displayName || user.identity;
+        })
+        .catch(() => {});
 
     // 2. Apply Theme
     applyTheme(state.settings.theme);
@@ -56,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     wireUpNoteEditing();
 
-    logger.success("Hestia-Core: Ready.");
+    logger.success("Brigid: Ready.");
 
     // Expose for debugging
     window.__APP__ = { state, renderGrid, toggleEditMode, logger };
