@@ -33,6 +33,7 @@ KOMODO_URL = os.getenv("KOMODO_URL", "").strip().rstrip("/")
 KOMODO_API_KEY = os.getenv("KOMODO_API_KEY", "").strip()
 KOMODO_API_SECRET = os.getenv("KOMODO_API_SECRET", "").strip()
 KOMODO_SERVER = os.getenv("KOMODO_SERVER", "local").strip()
+DEFAULT_LAYOUT_FILE = Path(os.getenv("BRIGID_DEFAULT_LAYOUT_FILE", ROOT / "default-layout.json"))
 
 
 class ProfilePayload(BaseModel):
@@ -115,6 +116,16 @@ def decode(value: bytes) -> ProfilePayload:
         raise HTTPException(status_code=500, detail="Stored dashboard data cannot be decrypted") from exc
 
 
+def default_layout() -> ProfilePayload:
+    """Load the safe, version-controlled household starter dashboard."""
+    try:
+        return ProfilePayload.model_validate_json(DEFAULT_LAYOUT_FILE.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=500, detail="Default dashboard layout is unavailable") from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail="Default dashboard layout is invalid") from exc
+
+
 def komodo_configured() -> bool:
     return bool(KOMODO_URL and KOMODO_API_KEY and KOMODO_API_SECRET and KOMODO_SERVER)
 
@@ -158,6 +169,7 @@ def configuration() -> dict[str, bool]:
         "oidcEnabled": OIDC_ENABLED,
         "profilePersistenceEnabled": OIDC_ENABLED,
         "komodoConfigured": komodo_configured(),
+        "defaultLayoutConfigured": DEFAULT_LAYOUT_FILE.is_file(),
     }
 
 
@@ -172,6 +184,11 @@ def current_user(request: Request) -> dict[str, str]:
 @app.get("/api/komodo/stats")
 async def komodo_stats() -> dict[str, Any]:
     return await read_komodo_system_stats()
+
+
+@app.get("/api/default-layout")
+def household_default_layout() -> dict[str, Any]:
+    return default_layout().model_dump()
 
 
 @app.get("/api/profile")

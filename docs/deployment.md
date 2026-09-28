@@ -28,6 +28,29 @@ python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().
 Set the output as `BRIGID_ENCRYPTION_KEY`. Do not commit this file or paste the
 key into the dashboard. Losing it prevents decryption of existing profiles.
 
+## Household starter layout
+
+`default-layout.json` is the version-controlled Dryad household template. It
+contains the safe, branded starting cards for Lesflix, Lesseer, BookLore,
+Shelfmark, SuggestArr, Pocket ID, Homepage, and Komodo—never API keys or other
+credentials.
+
+The compose file mounts it read-only at `/config/default-layout.json`. Brigid
+uses it only when a browser has no saved dashboard and then seeds an
+authenticated user's first encrypted profile from it. Changing the file affects
+new or reset dashboards only; it never overwrites an existing user's layout.
+
+To customize the deployed household baseline, copy the repository's
+`default-layout.json` to:
+
+```text
+/portainer/Files/AppData/Config/brigid/default-layout.json
+```
+
+After editing it, recreate Brigid so the file mount/config is refreshed. A
+dashboard reset is the explicit way for an existing user to adopt the new
+template.
+
 ## 2. Caddy and Pocket ID
 
 Protect `brigid.dryad.nexus` with the same Pocket ID OIDC pattern already used

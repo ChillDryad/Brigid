@@ -17,9 +17,10 @@ function mergeState(parsed) {
   }
 }
 
-function defaults() {
-  state.apps = structuredClone(DEFAULT_APPS);
-  state.settings.theme = { ...DEFAULT_THEME };
+function defaults(layout = null) {
+  state.apps = structuredClone(layout?.apps?.length ? layout.apps : DEFAULT_APPS);
+  state.settings = { ...state.settings, ...(layout?.settings || {}) };
+  state.settings.theme = { ...DEFAULT_THEME, ...(layout?.settings?.theme || {}) };
 }
 
 function localPayload() {
@@ -53,6 +54,10 @@ export async function loadState() {
       serverPersistenceEnabled = config.profilePersistenceEnabled !== false;
     }
 
+    let householdLayout = null;
+    const layoutResponse = await fetch("/api/default-layout", { credentials: "same-origin" });
+    if (layoutResponse.ok) householdLayout = await layoutResponse.json();
+
     const local = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (local) mergeState(JSON.parse(local));
     else {
@@ -66,11 +71,11 @@ export async function loadState() {
         }
         if (legacyApps) state.apps = JSON.parse(legacyApps);
       } else {
-        defaults();
+        defaults(householdLayout);
       }
     }
 
-    if (!state.apps?.length && !local) defaults();
+    if (!state.apps?.length && !local) defaults(householdLayout);
     state.settings.theme = { ...DEFAULT_THEME, ...(state.settings.theme || {}) };
     saveLocal();
 

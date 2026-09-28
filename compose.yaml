@@ -7,6 +7,7 @@ services:
       - /portainer/Files/AppData/Config/brigid/brigid.env
     volumes:
       - /portainer/Files/AppData/Config/brigid/data:/data
+      - /portainer/Files/AppData/Config/brigid/default-layout.json:/config/default-layout.json:ro
     expose:
       - "8000"
     networks:
