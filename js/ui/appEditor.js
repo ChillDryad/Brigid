@@ -30,6 +30,13 @@ function generateEditorHtml(appType, currentData = {}) {
             <label class="label-muted">App Name</label>
             <input type="text" id="core-name" class="modal-input" value="${defaults.name}" placeholder="My App">
         </div>
+        <div class="form-group">
+            <label class="label-muted">Mobile Width</label>
+            <select id="core-mobileCols" class="modal-input">
+                <option value="2" ${Number(currentData.data?.mobileCols) !== 1 ? 'selected' : ''}>Full width</option>
+                <option value="1" ${Number(currentData.data?.mobileCols) === 1 ? 'selected' : ''}>Half width</option>
+            </select>
+        </div>
 
         <div style="display:flex; gap:20px;">
             <div style="flex:1;">
@@ -267,6 +274,7 @@ function promptDeleteApp(card) {
 async function saveApp(existingId, type) {
     // 1. Core Data
     const name = qs('#core-name').value.trim() || "Untitled";
+    const mobileCols = Number(qs('#core-mobileCols')?.value) === 1 ? 1 : 2;
     const bgColor = qs('#core-bgColor').value;
     const textColor = qs('#core-textColor').value;
 
@@ -309,7 +317,7 @@ async function saveApp(existingId, type) {
     }
 
     // 3. Merge & Save
-    const finalData = { ...dynamicData, bgColor, textColor };
+    const finalData = { ...dynamicData, bgColor, textColor, mobileCols };
     let newApps = [...state.apps];
 
     if (existingId) {

@@ -131,7 +131,7 @@ body.shadow-on .app-card {
 }
 
 @media (max-width: 768px) {
-    .app-card { width: 100%; min-height: 150px; grid-column: auto !important; grid-row: auto !important; }
+    .app-card { width: auto; min-height: 150px; grid-column: span var(--mobile-cols, 2) !important; grid-row: auto !important; }
     .dashboard-container.edit-mode .app-card { animation: none; cursor: default; border-width: 2px; }
     .resize-handle { display: none; }
     .edit-btn, .delete-btn { width: 42px; height: 42px; opacity: 0; pointer-events: none; }

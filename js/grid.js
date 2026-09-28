@@ -69,6 +69,7 @@ export async function renderGrid(dragInfo = null) {
 
                 if (app.data?.bgColor) el.style.backgroundColor = app.data.bgColor;
                 if (app.data?.textColor) el.style.color = app.data.textColor;
+                el.style.setProperty('--mobile-cols', Number(app.data?.mobileCols) === 1 ? 1 : 2);
 
                 if (dataHash !== currentHash) {
                     await mountAppContent(el, app);
@@ -130,6 +131,7 @@ async function createAppElement(app) {
 
     if (app.data?.bgColor) el.style.backgroundColor = app.data.bgColor;
     if (app.data?.textColor) el.style.color = app.data.textColor;
+    el.style.setProperty('--mobile-cols', Number(app.data?.mobileCols) === 1 ? 1 : 2);
 
     el.dataset.contentHash = JSON.stringify(app.data || {}) + app.name;
 
