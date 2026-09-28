@@ -18,7 +18,15 @@ import './apps/appIndex.js';
 document.addEventListener('DOMContentLoaded', async () => {
     logger.info("Brigid: Booting...");
 
-    // 1. Load Data
+    // 1. Resolve identity before loading role-filtered dashboard data.
+    const currentUser = await fetch("/api/me", { credentials: "same-origin" })
+        .then((response) => response.ok ? response.json() : null)
+        .catch(() => null);
+    setState("user", currentUser);
+    const badge = qs("#identityBadge");
+    if (badge && currentUser) badge.textContent = currentUser.displayName || currentUser.identity;
+
+    // 2. Load Data
     const savedState = await loadState();
 
     // Population Safety Check: If apps are missing, load defaults
@@ -36,27 +44,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         state.palettes = window.HESTIA_PALETTES;
     }
 
-    fetch("/api/me", { credentials: "same-origin" })
-        .then((response) => response.ok ? response.json() : null)
-        .then((user) => {
-            const badge = qs("#identityBadge");
-            if (badge && user) badge.textContent = user.displayName || user.identity;
-        })
-        .catch(() => {});
-
-    // 2. Apply Theme
+    // 3. Apply Theme
     applyTheme(state.settings.theme);
 
-    // 3. Render Dashboard
+    // 4. Render Dashboard
     await renderGrid();
 
-    // 4. Initialize UI Modules
+    // 5. Initialize UI Modules
     initModal();
     initGlobalEvents();
     initSettingsPanel();
     initAppEditor();
 
-    // 5. Wire up Header Buttons
+    // 6. Wire up Header Buttons
     wireUpToolbar();
 
     // 6. Wire up Inline Renaming (Feature Parity)

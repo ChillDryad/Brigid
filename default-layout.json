@@ -11,6 +11,7 @@
       "rows": 1,
       "data": {
         "interval": "15000",
+        "adminOnly": true,
         "bgColor": "var(--bg-surface)",
         "textColor": "var(--text-main)"
       }
@@ -123,6 +124,7 @@
       "data": {
         "url": "https://home.dryad.nexus",
         "icon": "gauge-high",
+        "adminOnly": true,
         "bgColor": "var(--base08)",
         "textColor": "var(--base00)"
       }
@@ -183,6 +185,7 @@
       "rows": 1,
       "data": {
         "interval": "15000",
+        "adminOnly": true,
         "bgColor": "var(--bg-surface)",
         "textColor": "var(--text-main)"
       }

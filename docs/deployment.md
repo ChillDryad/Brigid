@@ -51,25 +51,33 @@ After editing it, recreate Brigid so the file mount/config is refreshed. A
 dashboard reset is the explicit way for an existing user to adopt the new
 template.
 
-## 2. Caddy and Pocket ID
+## 2. Native Pocket ID OIDC
 
-Protect `brigid.dryad.nexus` with the same Pocket ID OIDC pattern already used
-by your homelab, then inject the authenticated user's stable identity into the
-header configured by `BRIGID_IDENTITY_HEADER` (default: `X-Auth-Email`).
-Brigid must not be published with a host port; only Caddy should reach port 8000.
+Brigid is an OIDC relying party itself. Caddy only reverse-proxies to port
+8000—do not add Caddy forward-auth or identity headers to this route.
 
-Conceptual reverse-proxy portion after your OIDC authentication directive:
+Create a confidential Pocket ID client named **Brigid** with PKCE enabled:
 
-```caddy
-reverse_proxy brigid:8000 {
-    header_up X-Auth-Email {http.auth.user.id}
-    header_up X-Auth-Name {http.auth.user.name}
-}
+```text
+Callback URL: https://brigid.dryad.nexus/auth/callback
+Scopes: openid profile email groups
 ```
 
-Header placeholder names vary by your OIDC module. Confirm them against the
-module you use; the security requirement is that Caddy, not the browser,
-injects the identity header after Pocket ID authentication.
+Copy Pocket ID's client UUID and secret into `brigid.env` along with
+`BRIGID_OIDC_ISSUER=https://auth.dryad.nexus` and
+`BRIGID_PUBLIC_URL=https://brigid.dryad.nexus`. Brigid completes the
+authorization-code exchange server-side, verifies the ID token against Pocket
+ID's discovered JWKS, and stores only an opaque HttpOnly session cookie in the
+browser.
+
+Set the allowed client groups in Pocket ID and repeat the intended group names
+in `BRIGID_ALLOWED_GROUPS`. `BRIGID_ADMIN_GROUPS` controls server-enforced
+administrator widgets and API routes such as Komodo and GPU telemetry.
+
+To restrict an individual layout card, set `"adminOnly": true` in that card's
+`data` object. Brigid hides those cards for non-admin users and independently
+returns `403` from protected server-side telemetry endpoints. The starter
+layout marks Komodo, GPU telemetry, and Homepage as administrator-only.
 
 ## Security model
 

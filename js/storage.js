@@ -10,7 +10,9 @@ let saveTimer;
 let serverPersistenceEnabled = true;
 
 function mergeState(parsed) {
-  if (parsed?.apps && Array.isArray(parsed.apps)) state.apps = parsed.apps;
+  if (parsed?.apps && Array.isArray(parsed.apps)) {
+    state.apps = parsed.apps.filter((app) => !app.data?.adminOnly || state.user?.isAdmin !== false);
+  }
   if (parsed?.settings && typeof parsed.settings === "object") {
     state.settings = { ...state.settings, ...parsed.settings };
     state.settings.theme = { ...DEFAULT_THEME, ...(parsed.settings.theme || {}) };
@@ -18,7 +20,8 @@ function mergeState(parsed) {
 }
 
 function defaults(layout = null) {
-  state.apps = structuredClone(layout?.apps?.length ? layout.apps : DEFAULT_APPS);
+  const apps = layout?.apps?.length ? layout.apps : DEFAULT_APPS;
+  state.apps = structuredClone(apps.filter((app) => !app.data?.adminOnly || state.user?.isAdmin !== false));
   state.settings = { ...state.settings, ...(layout?.settings || {}) };
   state.settings.theme = { ...DEFAULT_THEME, ...(layout?.settings?.theme || {}) };
 }

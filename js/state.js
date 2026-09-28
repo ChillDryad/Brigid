@@ -5,6 +5,7 @@
 // Initial State Tree
 export const state = {
   apps: [], // List of app objects
+  user: null,
 
   // Loaded Palettes (will be populated from palettes.js or API)
   palettes: {},

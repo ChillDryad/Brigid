@@ -1,25 +1,30 @@
-"""Brigid's authenticated dashboard profile API.
+"""Brigid's native Pocket ID OIDC dashboard profile API.
 
-Authentication is performed by Caddy's Pocket ID OIDC middleware. The service
-only accepts identity headers injected by that reverse proxy and is never
-published directly to the host.
+Brigid is an OpenID Connect relying party. It owns authorization-code + PKCE
+handling, opaque server-side sessions, encrypted profiles, and role checks;
+Caddy only provides TLS and reverse-proxy routing.
 """
 
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import re
+import secrets
 import sqlite3
+import time
+from urllib.parse import urlencode
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
 import httpx
+from authlib.jose import jwt
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -30,6 +35,14 @@ DATABASE_PATH = DATA_DIR / "brigid.sqlite3"
 IDENTITY_HEADER = os.getenv("BRIGID_IDENTITY_HEADER", "X-Auth-Email").lower()
 NAME_HEADER = os.getenv("BRIGID_NAME_HEADER", "X-Auth-Name").lower()
 OIDC_ENABLED = os.getenv("BRIGID_OIDC_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
+OIDC_ISSUER = os.getenv("BRIGID_OIDC_ISSUER", "").strip().rstrip("/")
+OIDC_CLIENT_ID = os.getenv("BRIGID_OIDC_CLIENT_ID", "").strip()
+OIDC_CLIENT_SECRET = os.getenv("BRIGID_OIDC_CLIENT_SECRET", "").strip()
+PUBLIC_URL = os.getenv("BRIGID_PUBLIC_URL", "").strip().rstrip("/")
+ALLOWED_GROUPS = {group.strip() for group in os.getenv("BRIGID_ALLOWED_GROUPS", "").split(",") if group.strip()}
+ADMIN_GROUPS = {group.strip() for group in os.getenv("BRIGID_ADMIN_GROUPS", "").split(",") if group.strip()}
+SESSION_MAX_AGE = int(os.getenv("BRIGID_SESSION_MAX_AGE_HOURS", "168")) * 3600
+COOKIE_SECURE = os.getenv("BRIGID_COOKIE_SECURE", "true").strip().lower() not in {"0", "false", "no", "off"}
 KOMODO_URL = os.getenv("KOMODO_URL", "").strip().rstrip("/")
 KOMODO_API_KEY = os.getenv("KOMODO_API_KEY", "").strip()
 KOMODO_API_SECRET = os.getenv("KOMODO_API_SECRET", "").strip()
@@ -72,6 +85,14 @@ async def browser_cache_policy(request: Request, call_next: Any) -> Response:
     return response
 
 
+@app.middleware("http")
+async def native_oidc_api_guard(request: Request, call_next: Any) -> Response:
+    if OIDC_ENABLED and request.url.path.startswith("/api/") and request.url.path != "/api/health":
+        if session_user_from(request) is None:
+            return JSONResponse(status_code=401, content={"detail": "Brigid requires Pocket ID authentication"})
+    return await call_next(request)
+
+
 @contextmanager
 def database():
     connection = sqlite3.connect(DATABASE_PATH)
@@ -92,6 +113,8 @@ def initialize_database() -> None:
             CREATE TABLE IF NOT EXISTS users (
                 identity TEXT PRIMARY KEY,
                 display_name TEXT NOT NULL,
+                email TEXT,
+                groups_json TEXT NOT NULL DEFAULT '[]',
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
@@ -100,8 +123,25 @@ def initialize_database() -> None:
                 encrypted_state BLOB NOT NULL,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash TEXT PRIMARY KEY,
+                identity TEXT NOT NULL REFERENCES users(identity) ON DELETE CASCADE,
+                expires_at INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE TABLE IF NOT EXISTS oidc_transactions (
+                state TEXT PRIMARY KEY,
+                nonce TEXT NOT NULL,
+                code_verifier TEXT NOT NULL,
+                expires_at INTEGER NOT NULL
+            );
             """
         )
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(users)")}
+        if "email" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN email TEXT")
+        if "groups_json" not in columns:
+            connection.execute("ALTER TABLE users ADD COLUMN groups_json TEXT NOT NULL DEFAULT '[]'")
 
 
 @app.on_event("startup")
@@ -109,14 +149,69 @@ def startup() -> None:
     initialize_database()
 
 
+def oidc_configured() -> bool:
+    return bool(OIDC_ISSUER and OIDC_CLIENT_ID and OIDC_CLIENT_SECRET and PUBLIC_URL)
+
+
+def oidc_redirect_uri() -> str:
+    return f"{PUBLIC_URL}/auth/callback"
+
+
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+async def oidc_discovery() -> dict[str, Any]:
+    if not oidc_configured():
+        raise HTTPException(status_code=503, detail="Native OIDC is not configured")
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0), follow_redirects=False) as client:
+        response = await client.get(f"{OIDC_ISSUER}/.well-known/openid-configuration")
+        response.raise_for_status()
+    metadata = response.json()
+    if metadata.get("issuer") != OIDC_ISSUER:
+        raise HTTPException(status_code=502, detail="OIDC discovery issuer mismatch")
+    return metadata
+
+
+def session_user_from(request: Request) -> dict[str, Any] | None:
+    token = request.cookies.get("brigid_session")
+    if not token:
+        return None
+    with database() as connection:
+        connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (int(time.time()),))
+        row = connection.execute(
+            """SELECT users.identity, users.display_name, users.email, users.groups_json FROM sessions
+               JOIN users ON users.identity = sessions.identity
+               WHERE sessions.token_hash = ? AND sessions.expires_at > ?""",
+            (token_hash(token), int(time.time())),
+        ).fetchone()
+    if not row:
+        return None
+    groups = json.loads(row["groups_json"] or "[]")
+    return {
+        "identity": row["identity"],
+        "displayName": row["display_name"],
+        "email": row["email"],
+        "groups": groups if isinstance(groups, list) else [],
+        "isAdmin": bool(ADMIN_GROUPS.intersection(groups)),
+    }
+
+
 def identity_from(request: Request) -> tuple[str | None, str]:
     if not OIDC_ENABLED:
         return None, "Default dashboard"
-    identity = request.headers.get(IDENTITY_HEADER, "").strip().lower()
-    if not identity:
+    session = session_user_from(request)
+    if not session:
         raise HTTPException(status_code=401, detail="Brigid requires Pocket ID authentication")
-    display_name = request.headers.get(NAME_HEADER, "").strip() or identity
-    return identity, display_name
+    return session["identity"], session["displayName"]
+
+
+def require_admin(request: Request) -> None:
+    if not OIDC_ENABLED:
+        return
+    session = session_user_from(request)
+    if not session or not session["isAdmin"]:
+        raise HTTPException(status_code=403, detail="Brigid administrator permission required")
 
 
 def encode(payload: ProfilePayload) -> bytes:
@@ -238,6 +333,89 @@ def health() -> dict[str, bool | str]:
     return {"status": "ok", "oidcEnabled": OIDC_ENABLED}
 
 
+@app.get("/auth/login")
+async def login() -> RedirectResponse:
+    if not OIDC_ENABLED:
+        return RedirectResponse("/")
+    metadata = await oidc_discovery()
+    state, nonce, verifier = secrets.token_urlsafe(32), secrets.token_urlsafe(32), secrets.token_urlsafe(64)
+    challenge = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).decode().rstrip("=")
+    with database() as connection:
+        connection.execute("DELETE FROM oidc_transactions WHERE expires_at <= ?", (int(time.time()),))
+        connection.execute(
+            "INSERT INTO oidc_transactions(state, nonce, code_verifier, expires_at) VALUES (?, ?, ?, ?)",
+            (state, nonce, verifier, int(time.time()) + 600),
+        )
+    query = urlencode({
+        "response_type": "code", "client_id": OIDC_CLIENT_ID, "redirect_uri": oidc_redirect_uri(),
+        "scope": "openid profile email groups", "state": state, "nonce": nonce,
+        "code_challenge": challenge, "code_challenge_method": "S256",
+    })
+    return RedirectResponse(f"{metadata['authorization_endpoint']}?{query}", status_code=302)
+
+
+@app.get("/auth/callback")
+async def callback(request: Request) -> RedirectResponse:
+    if request.query_params.get("error"):
+        raise HTTPException(status_code=401, detail="Pocket ID sign-in was denied")
+    state, code = request.query_params.get("state", ""), request.query_params.get("code", "")
+    with database() as connection:
+        transaction = connection.execute("SELECT * FROM oidc_transactions WHERE state = ?", (state,)).fetchone()
+        connection.execute("DELETE FROM oidc_transactions WHERE state = ?", (state,))
+    if not transaction or not code or transaction["expires_at"] <= int(time.time()):
+        raise HTTPException(status_code=400, detail="OIDC login transaction expired or invalid")
+    metadata = await oidc_discovery()
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0), follow_redirects=False) as client:
+        token_response = await client.post(metadata["token_endpoint"], data={
+            "grant_type": "authorization_code", "code": code, "redirect_uri": oidc_redirect_uri(),
+            "client_id": OIDC_CLIENT_ID, "client_secret": OIDC_CLIENT_SECRET,
+            "code_verifier": transaction["code_verifier"],
+        })
+        token_response.raise_for_status()
+        token = token_response.json()
+        jwks_response = await client.get(metadata["jwks_uri"])
+        jwks_response.raise_for_status()
+    claims = jwt.decode(token["id_token"], jwks_response.json())
+    claims.validate()
+    audience = claims.get("aud", [])
+    audience = [audience] if isinstance(audience, str) else audience
+    if claims.get("iss") != OIDC_ISSUER or OIDC_CLIENT_ID not in audience or claims.get("nonce") != transaction["nonce"]:
+        raise HTTPException(status_code=401, detail="Pocket ID token validation failed")
+    groups = claims.get("groups", [])
+    groups = [groups] if isinstance(groups, str) else groups
+    groups = [str(group) for group in groups]
+    if ALLOWED_GROUPS and not ALLOWED_GROUPS.intersection(groups):
+        raise HTTPException(status_code=403, detail="Your Pocket ID group cannot access Brigid")
+    identity, display_name = str(claims["sub"]), str(claims.get("name") or claims.get("preferred_username") or claims["sub"])
+    email = str(claims.get("email") or "")
+    bearer = secrets.token_urlsafe(32)
+    with database() as connection:
+        connection.execute(
+            """INSERT INTO users(identity, display_name, email, groups_json) VALUES (?, ?, ?, ?)
+               ON CONFLICT(identity) DO UPDATE SET display_name=excluded.display_name, email=excluded.email,
+               groups_json=excluded.groups_json, updated_at=CURRENT_TIMESTAMP""",
+            (identity, display_name, email, json.dumps(groups)),
+        )
+        connection.execute("INSERT INTO sessions(token_hash, identity, expires_at) VALUES (?, ?, ?)",
+                           (token_hash(bearer), identity, int(time.time()) + SESSION_MAX_AGE))
+    response = RedirectResponse("/", status_code=302)
+    response.set_cookie("brigid_session", bearer, max_age=SESSION_MAX_AGE, httponly=True,
+                        secure=COOKIE_SECURE, samesite="lax", path="/")
+    return response
+
+
+@app.get("/auth/logout")
+@app.post("/auth/logout")
+def logout(request: Request) -> RedirectResponse:
+    token = request.cookies.get("brigid_session")
+    if token:
+        with database() as connection:
+            connection.execute("DELETE FROM sessions WHERE token_hash = ?", (token_hash(token),))
+    response = RedirectResponse("/", status_code=302)
+    response.delete_cookie("brigid_session", path="/")
+    return response
+
+
 @app.get("/api/config")
 def configuration() -> dict[str, bool]:
     """Expose only non-sensitive feature flags required by the frontend."""
@@ -251,20 +429,23 @@ def configuration() -> dict[str, bool]:
 
 
 @app.get("/api/me")
-def current_user(request: Request) -> dict[str, str]:
+def current_user(request: Request) -> dict[str, Any]:
     identity, display_name = identity_from(request)
     if identity is None:
-        return {"mode": "default", "displayName": display_name}
-    return {"identity": identity, "displayName": display_name}
+        return {"mode": "default", "displayName": display_name, "isAdmin": True}
+    user = session_user_from(request)
+    return {"identity": identity, "displayName": display_name, "isAdmin": bool(user and user["isAdmin"])}
 
 
 @app.get("/api/komodo/stats")
-async def komodo_stats() -> dict[str, Any]:
+async def komodo_stats(request: Request) -> dict[str, Any]:
+    require_admin(request)
     return await read_komodo_system_stats()
 
 
 @app.get("/api/gpu/stats")
-async def gpu_stats() -> dict[str, Any]:
+async def gpu_stats(request: Request) -> dict[str, Any]:
+    require_admin(request)
     return await read_gpu_stats()
 
 
@@ -334,7 +515,9 @@ def delete_profile(request: Request) -> Response:
 
 
 @app.get("/")
-def index() -> FileResponse:
+def index(request: Request) -> Response:
+    if OIDC_ENABLED and session_user_from(request) is None:
+        return RedirectResponse("/auth/login", status_code=302)
     return FileResponse(STATIC_DIR / "index.html")
 
 
