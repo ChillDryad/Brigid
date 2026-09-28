@@ -89,6 +89,8 @@ body.shadow-on .app-card {
     100% { opacity: 0.4; }
 }
 
+.mobile-edit-controls { display: none; }
+
 .edit-btn, .delete-btn {
     position: absolute; width: 30px; height: 30px;
     border-radius: 4px; color: white;
@@ -130,4 +132,15 @@ body.shadow-on .app-card {
 
 @media (max-width: 768px) {
     .app-card { width: 100%; min-height: 150px; grid-column: auto !important; grid-row: auto !important; }
+    .dashboard-container.edit-mode .app-card { animation: none; cursor: default; border-width: 2px; }
+    .resize-handle { display: none; }
+    .edit-btn, .delete-btn { width: 42px; height: 42px; opacity: 0; pointer-events: none; }
+    .edit-btn { top: 8px; right: 58px; }
+    .delete-btn { top: 8px; right: 8px; }
+    .mobile-edit-controls { position: absolute; display: none; bottom: 8px; right: 8px; gap: 6px; z-index: 5000; }
+    .mobile-edit-controls button { width: 42px; height: 42px; border: 1px solid var(--border-dim); border-radius: 8px; background: var(--bg-canvas); color: var(--text-main); font: inherit; }
+    .dashboard-container.edit-mode .edit-btn,
+    .dashboard-container.edit-mode .delete-btn,
+    .dashboard-container.edit-mode .mobile-edit-controls { opacity: 1; pointer-events: auto; display: flex; }
+    .dashboard-container.edit-mode .card-meta { opacity: 1; bottom: 14px; }
 }
