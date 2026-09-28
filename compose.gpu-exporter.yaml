@@ -1,0 +1,19 @@
+# Deploy this on the NVIDIA GPU host, not necessarily alongside Brigid.
+# It requires the NVIDIA Container Toolkit and a working NVIDIA driver.
+services:
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:4.6.0-4.8.3-distroless
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    gpus: all
+    cap_add:
+      - SYS_ADMIN
+    expose:
+      - "9400"
+    networks:
+      - caddy-homelab
+
+networks:
+  caddy-homelab:
+    external: true
+    name: caddy-homelab

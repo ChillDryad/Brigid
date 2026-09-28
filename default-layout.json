@@ -171,6 +171,21 @@
         "bgColor": "var(--bg-surface)",
         "textColor": "var(--text-main)"
       }
+    },
+    {
+      "id": 1012,
+      "name": "GPU",
+      "subtype": "gpu-stats",
+      "type": "static",
+      "x": 5,
+      "y": 4,
+      "cols": 2,
+      "rows": 1,
+      "data": {
+        "interval": "15000",
+        "bgColor": "var(--bg-surface)",
+        "textColor": "var(--text-main)"
+      }
     }
   ],
   "settings": {

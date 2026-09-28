@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -34,6 +35,7 @@ KOMODO_API_KEY = os.getenv("KOMODO_API_KEY", "").strip()
 KOMODO_API_SECRET = os.getenv("KOMODO_API_SECRET", "").strip()
 KOMODO_SERVER = os.getenv("KOMODO_SERVER", "local").strip()
 DEFAULT_LAYOUT_FILE = Path(os.getenv("BRIGID_DEFAULT_LAYOUT_FILE", ROOT / "default-layout.json"))
+GPU_METRICS_URL = os.getenv("GPU_METRICS_URL", "").strip()
 
 
 class ProfilePayload(BaseModel):
@@ -142,6 +144,68 @@ def komodo_configured() -> bool:
     return bool(KOMODO_URL and KOMODO_API_KEY and KOMODO_API_SECRET and KOMODO_SERVER)
 
 
+def gpu_metrics_configured() -> bool:
+    return bool(GPU_METRICS_URL)
+
+
+PROMETHEUS_SAMPLE = re.compile(
+    r'^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)'
+)
+PROMETHEUS_LABEL = re.compile(r'(\w+)="((?:\\.|[^"\\])*)"')
+
+
+def parse_gpu_metrics(metrics: str) -> dict[str, Any]:
+    """Reduce NVIDIA DCGM's Prometheus payload to a dashboard-safe summary."""
+    fields = {
+        "DCGM_FI_DEV_GPU_UTIL": "utilization",
+        "DCGM_FI_DEV_FB_USED": "vramUsedMiB",
+        "DCGM_FI_DEV_FB_FREE": "vramFreeMiB",
+        "DCGM_FI_DEV_FB_TOTAL": "vramTotalMiB",
+        "DCGM_FI_DEV_GPU_TEMP": "temperatureC",
+        "DCGM_FI_DEV_POWER_USAGE": "powerW",
+    }
+    gpus: dict[str, dict[str, Any]] = {}
+    for line in metrics.splitlines():
+        match = PROMETHEUS_SAMPLE.match(line)
+        if not match or match.group(1) not in fields:
+            continue
+        labels = {key: value.replace('\\"', '"') for key, value in PROMETHEUS_LABEL.findall(match.group(2) or "")}
+        gpu_id = labels.get("UUID") or labels.get("gpu")
+        if gpu_id is None:
+            continue
+        gpu = gpus.setdefault(gpu_id, {"id": gpu_id, "name": labels.get("modelName") or labels.get("model") or f"GPU {labels.get('gpu', '?')}"})
+        gpu[fields[match.group(1)]] = float(match.group(3))
+
+    result = list(gpus.values())
+    if not result:
+        raise HTTPException(status_code=502, detail="GPU exporter returned no NVIDIA GPU metrics")
+    for gpu in result:
+        if "vramTotalMiB" not in gpu and "vramUsedMiB" in gpu and "vramFreeMiB" in gpu:
+            gpu["vramTotalMiB"] = gpu["vramUsedMiB"] + gpu["vramFreeMiB"]
+
+    values = lambda key: [float(gpu[key]) for gpu in result if key in gpu]
+    used, total = values("vramUsedMiB"), values("vramTotalMiB")
+    return {
+        "gpus": result,
+        "summary": {
+            "utilization": sum(values("utilization")) / len(values("utilization")) if values("utilization") else None,
+            "vramUsedMiB": sum(used) if used else None,
+            "vramTotalMiB": sum(total) if total else None,
+            "temperatureC": max(values("temperatureC"), default=None),
+            "powerW": sum(values("powerW")) if values("powerW") else None,
+        },
+    }
+
+
+async def read_gpu_stats() -> dict[str, Any]:
+    if not gpu_metrics_configured():
+        raise HTTPException(status_code=503, detail="GPU statistics are not configured")
+    async with httpx.AsyncClient(timeout=httpx.Timeout(5.0), follow_redirects=False) as client:
+        response = await client.get(GPU_METRICS_URL)
+        response.raise_for_status()
+    return parse_gpu_metrics(response.text)
+
+
 async def read_komodo_system_stats() -> dict[str, Any]:
     """Call Komodo's read-only system-stat endpoint without exposing its key."""
     if not komodo_configured():
@@ -181,6 +245,7 @@ def configuration() -> dict[str, bool]:
         "oidcEnabled": OIDC_ENABLED,
         "profilePersistenceEnabled": OIDC_ENABLED,
         "komodoConfigured": komodo_configured(),
+        "gpuMetricsConfigured": gpu_metrics_configured(),
         "defaultLayoutConfigured": DEFAULT_LAYOUT_FILE.is_file(),
     }
 
@@ -196,6 +261,11 @@ def current_user(request: Request) -> dict[str, str]:
 @app.get("/api/komodo/stats")
 async def komodo_stats() -> dict[str, Any]:
     return await read_komodo_system_stats()
+
+
+@app.get("/api/gpu/stats")
+async def gpu_stats() -> dict[str, Any]:
+    return await read_gpu_stats()
 
 
 @app.get("/api/default-layout")

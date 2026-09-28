@@ -93,3 +93,21 @@ Create a dedicated Komodo service user/API key with **Read** permission only,
 scoped to the intended server. Do not use an administrator key. Brigid calls
 Komodo's `GetSystemStats` read operation server-side and tries the current and
 legacy read-route formats for compatibility across Komodo releases.
+
+## NVIDIA GPU metrics
+
+The **NVIDIA GPU Stats** card reads an NVIDIA DCGM Exporter Prometheus endpoint
+through Brigid's backend. It displays GPU utilization, aggregate VRAM usage,
+temperature, and GPU name/count without exposing the exporter to the browser.
+
+Deploy `compose.gpu-exporter.yaml` on the NVIDIA GPU host after installing the
+NVIDIA Container Toolkit. Keep port 9400 internal: when the exporter shares
+`caddy-homelab` with Brigid, set:
+
+```env
+GPU_METRICS_URL=http://dcgm-exporter:9400/metrics
+```
+
+For a GPU host on another network, point `GPU_METRICS_URL` at a private
+Tailnet-only exporter URL. Do not publish DCGM metrics through the public
+Cloudflare tunnel.
