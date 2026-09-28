@@ -4,6 +4,17 @@ Brigid delegates sign-in to Pocket ID through Caddy. It creates one encrypted
 profile per authenticated identity on first visit. It is deliberately not a
 public registration service.
 
+## Authentication modes
+
+`BRIGID_OIDC_ENABLED=true` is the secure default. Caddy/Pocket ID protects the
+site and Brigid stores encrypted, per-user server profiles.
+
+Set `BRIGID_OIDC_ENABLED=false` to run a shared default dashboard before you
+have user accounts. In this mode Brigid does not require identity headers, does
+not create user records, and does not persist server-side profiles. Everyone is
+served the built-in dashboard; browser localStorage remains an optional local
+cache. Do not expose this mode publicly if users can add sensitive widget data.
+
 ## 1. Create persistent application data
 
 Create `/portainer/Files/AppData/Config/brigid/data` and copy
@@ -41,7 +52,9 @@ injects the identity header after Pocket ID authentication.
 
 - Pocket ID owns user creation, sign-in, and MFA/passkeys.
 - Brigid stores encrypted per-user dashboards in SQLite at `/data/brigid.db`.
-- `/api/*` rejects requests without the configured identity header.
+- With OIDC enabled, `/api/*` profile routes reject requests without the
+  configured identity header. With OIDC disabled, the API serves the default
+  dashboard mode and refuses server-side profile writes.
 - Browser localStorage is only an offline cache and migration source. The API
   becomes the canonical profile after the first authenticated load.
 - Do not expose Brigid's container port or allow other untrusted containers to

@@ -27,6 +27,7 @@ DATA_DIR = Path(os.getenv("BRIGID_DATA_DIR", "/data"))
 DATABASE_PATH = DATA_DIR / "brigid.sqlite3"
 IDENTITY_HEADER = os.getenv("BRIGID_IDENTITY_HEADER", "X-Auth-Email").lower()
 NAME_HEADER = os.getenv("BRIGID_NAME_HEADER", "X-Auth-Name").lower()
+OIDC_ENABLED = os.getenv("BRIGID_OIDC_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
 
 
 class ProfilePayload(BaseModel):
@@ -88,7 +89,9 @@ def startup() -> None:
     initialize_database()
 
 
-def identity_from(request: Request) -> tuple[str, str]:
+def identity_from(request: Request) -> tuple[str | None, str]:
+    if not OIDC_ENABLED:
+        return None, "Default dashboard"
     identity = request.headers.get(IDENTITY_HEADER, "").strip().lower()
     if not identity:
         raise HTTPException(status_code=401, detail="Brigid requires Pocket ID authentication")
@@ -108,19 +111,30 @@ def decode(value: bytes) -> ProfilePayload:
 
 
 @app.get("/api/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
+def health() -> dict[str, bool | str]:
+    return {"status": "ok", "oidcEnabled": OIDC_ENABLED}
+
+
+@app.get("/api/config")
+def configuration() -> dict[str, bool]:
+    """Expose only non-sensitive feature flags required by the frontend."""
+    return {"oidcEnabled": OIDC_ENABLED, "profilePersistenceEnabled": OIDC_ENABLED}
 
 
 @app.get("/api/me")
 def current_user(request: Request) -> dict[str, str]:
     identity, display_name = identity_from(request)
+    if identity is None:
+        return {"mode": "default", "displayName": display_name}
     return {"identity": identity, "displayName": display_name}
 
 
 @app.get("/api/profile")
 def get_profile(request: Request, response: Response) -> dict[str, Any]:
     identity, display_name = identity_from(request)
+    if identity is None:
+        response.status_code = 204
+        return {}
     with database() as connection:
         connection.execute(
             """
@@ -142,6 +156,8 @@ def get_profile(request: Request, response: Response) -> dict[str, Any]:
 @app.put("/api/profile")
 def put_profile(request: Request, payload: ProfilePayload) -> dict[str, str]:
     identity, display_name = identity_from(request)
+    if identity is None:
+        raise HTTPException(status_code=403, detail="Profile persistence requires OIDC")
     encrypted_state = encode(payload)
     with database() as connection:
         connection.execute(
@@ -166,6 +182,8 @@ def put_profile(request: Request, payload: ProfilePayload) -> dict[str, str]:
 @app.delete("/api/profile", status_code=204)
 def delete_profile(request: Request) -> Response:
     identity, _ = identity_from(request)
+    if identity is None:
+        return Response(status_code=204)
     with database() as connection:
         connection.execute("DELETE FROM profiles WHERE identity = ?", (identity,))
     return Response(status_code=204)

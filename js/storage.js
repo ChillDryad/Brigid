@@ -7,6 +7,7 @@ const LEGACY_THEME_KEY = "hestia_theme";
 const LEGACY_APPS_KEY = "hestia_apps";
 const SENSITIVE_KEYS = ["apiKey", "password", "token", "secret", "auth", "key", "userId", "url"];
 let saveTimer;
+let serverPersistenceEnabled = true;
 
 function mergeState(parsed) {
   if (parsed?.apps && Array.isArray(parsed.apps)) state.apps = parsed.apps;
@@ -30,6 +31,7 @@ function saveLocal() {
 }
 
 async function saveRemote() {
+  if (!serverPersistenceEnabled) return;
   try {
     const response = await fetch("/api/profile", {
       method: "PUT",
@@ -45,6 +47,12 @@ async function saveRemote() {
 
 export async function loadState() {
   try {
+    const configResponse = await fetch("/api/config", { credentials: "same-origin" });
+    if (configResponse.ok) {
+      const config = await configResponse.json();
+      serverPersistenceEnabled = config.profilePersistenceEnabled !== false;
+    }
+
     const local = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (local) mergeState(JSON.parse(local));
     else {
@@ -67,7 +75,7 @@ export async function loadState() {
     saveLocal();
 
     const response = await fetch("/api/profile", { credentials: "same-origin" });
-    if (response.status === 204) {
+    if (response.status === 204 && serverPersistenceEnabled) {
       await saveRemote();
     } else if (response.ok) {
       const remote = await response.json();
@@ -101,7 +109,9 @@ export async function resetState() {
   localStorage.removeItem(LEGACY_THEME_KEY);
   localStorage.removeItem(LEGACY_APPS_KEY);
   try {
-    await fetch("/api/profile", { method: "DELETE", credentials: "same-origin" });
+    if (serverPersistenceEnabled) {
+      await fetch("/api/profile", { method: "DELETE", credentials: "same-origin" });
+    }
   } finally {
     window.location.reload();
   }
