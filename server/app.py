@@ -58,6 +58,18 @@ FERNET = Fernet(encryption_key())
 app = FastAPI(title="Brigid", docs_url=None, redoc_url=None)
 
 
+@app.middleware("http")
+async def browser_cache_policy(request: Request, call_next: Any) -> Response:
+    """Always revalidate frontend code; dashboard API responses stay private."""
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    elif path == "/" or path.endswith((".html", ".js", ".css")):
+        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return response
+
+
 @contextmanager
 def database():
     connection = sqlite3.connect(DATABASE_PATH)
