@@ -59,3 +59,14 @@ injects the identity header after Pocket ID authentication.
   becomes the canonical profile after the first authenticated load.
 - Do not expose Brigid's container port or allow other untrusted containers to
   reach it, because identity headers are a trusted reverse-proxy boundary.
+
+## Komodo server metrics
+
+Brigid includes a **Komodo Server Stats** widget. Add it from the dashboard's
+Add App dialog, then configure the backend (never the browser) with
+`KOMODO_URL`, `KOMODO_SERVER`, `KOMODO_API_KEY`, and `KOMODO_API_SECRET`.
+
+Create a dedicated Komodo service user/API key with **Read** permission only,
+scoped to the intended server. Do not use an administrator key. Brigid calls
+Komodo's `GetSystemStats` read operation server-side and tries the current and
+legacy read-route formats for compatibility across Komodo releases.

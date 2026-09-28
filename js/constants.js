@@ -42,6 +42,21 @@ export const DEFAULT_THEME = {
 
 export const DEFAULT_APPS = [
     {
+      "id": 1764067000000,
+      "name": "Komodo Server",
+      "subtype": "komodo-stats",
+      "type": "static",
+      "x": 1,
+      "y": 2,
+      "cols": 2,
+      "rows": 1,
+      "data": {
+        "interval": "15000",
+        "bgColor": "var(--bg-surface)",
+        "textColor": "var(--text-main)"
+      }
+    },
+    {
       "id": 1764067661194,
       "name": "Note app",
       "subtype": "note",

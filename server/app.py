@@ -15,6 +15,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import httpx
 from cryptography.fernet import Fernet, InvalidToken
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse
@@ -28,6 +29,10 @@ DATABASE_PATH = DATA_DIR / "brigid.sqlite3"
 IDENTITY_HEADER = os.getenv("BRIGID_IDENTITY_HEADER", "X-Auth-Email").lower()
 NAME_HEADER = os.getenv("BRIGID_NAME_HEADER", "X-Auth-Name").lower()
 OIDC_ENABLED = os.getenv("BRIGID_OIDC_ENABLED", "true").strip().lower() not in {"0", "false", "no", "off"}
+KOMODO_URL = os.getenv("KOMODO_URL", "").strip().rstrip("/")
+KOMODO_API_KEY = os.getenv("KOMODO_API_KEY", "").strip()
+KOMODO_API_SECRET = os.getenv("KOMODO_API_SECRET", "").strip()
+KOMODO_SERVER = os.getenv("KOMODO_SERVER", "local").strip()
 
 
 class ProfilePayload(BaseModel):
@@ -110,6 +115,37 @@ def decode(value: bytes) -> ProfilePayload:
         raise HTTPException(status_code=500, detail="Stored dashboard data cannot be decrypted") from exc
 
 
+def komodo_configured() -> bool:
+    return bool(KOMODO_URL and KOMODO_API_KEY and KOMODO_API_SECRET and KOMODO_SERVER)
+
+
+async def read_komodo_system_stats() -> dict[str, Any]:
+    """Call Komodo's read-only system-stat endpoint without exposing its key."""
+    if not komodo_configured():
+        raise HTTPException(status_code=503, detail="Komodo statistics are not configured")
+
+    headers = {
+        "X-Api-Key": KOMODO_API_KEY,
+        "X-Api-Secret": KOMODO_API_SECRET,
+        "Content-Type": "application/json",
+    }
+    attempts = (
+        (f"{KOMODO_URL}/read", {"type": "GetSystemStats", "params": {"server": KOMODO_SERVER}}),
+        (f"{KOMODO_URL}/read/GetSystemStats", {"server": KOMODO_SERVER}),
+    )
+    async with httpx.AsyncClient(timeout=httpx.Timeout(8.0), follow_redirects=False) as client:
+        last_response: httpx.Response | None = None
+        for url, payload in attempts:
+            response = await client.post(url, headers=headers, json=payload)
+            if response.status_code != 404:
+                response.raise_for_status()
+                result = response.json()
+                return result if isinstance(result, dict) else {"data": result}
+            last_response = response
+    status = last_response.status_code if last_response is not None else 502
+    raise HTTPException(status_code=502, detail=f"Komodo endpoint unavailable ({status})")
+
+
 @app.get("/api/health")
 def health() -> dict[str, bool | str]:
     return {"status": "ok", "oidcEnabled": OIDC_ENABLED}
@@ -118,7 +154,11 @@ def health() -> dict[str, bool | str]:
 @app.get("/api/config")
 def configuration() -> dict[str, bool]:
     """Expose only non-sensitive feature flags required by the frontend."""
-    return {"oidcEnabled": OIDC_ENABLED, "profilePersistenceEnabled": OIDC_ENABLED}
+    return {
+        "oidcEnabled": OIDC_ENABLED,
+        "profilePersistenceEnabled": OIDC_ENABLED,
+        "komodoConfigured": komodo_configured(),
+    }
 
 
 @app.get("/api/me")
@@ -127,6 +167,11 @@ def current_user(request: Request) -> dict[str, str]:
     if identity is None:
         return {"mode": "default", "displayName": display_name}
     return {"identity": identity, "displayName": display_name}
+
+
+@app.get("/api/komodo/stats")
+async def komodo_stats() -> dict[str, Any]:
+    return await read_komodo_system_stats()
 
 
 @app.get("/api/profile")
