@@ -38,8 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
          setState('apps', DEFAULT_APPS);
     }
 
-    // Theme Safety Check
-    if (!savedState.settings || !savedState.settings.theme) {
+    // Theme Safety Check — restore defaults if theme or palette is missing/corrupted
+    if (!savedState.settings || !savedState.settings.theme || !savedState.settings.theme.activePalette) {
          setState('settings.theme', DEFAULT_THEME);
     }
 

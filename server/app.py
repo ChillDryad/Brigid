@@ -399,9 +399,10 @@ async def callback(request: Request) -> RedirectResponse:
         )
         connection.execute("INSERT INTO sessions(token_hash, identity, expires_at) VALUES (?, ?, ?)",
                            (token_hash(bearer), identity, int(time.time()) + SESSION_MAX_AGE))
-    response = RedirectResponse("/", status_code=302)
+    response = RedirectResponse("/?auth=success", status_code=302)
     response.set_cookie("brigid_session", bearer, max_age=SESSION_MAX_AGE, httponly=True,
-                        secure=COOKIE_SECURE, samesite="lax", path="/")
+                        secure=COOKIE_SECURE, samesite="none" if COOKIE_SECURE else "lax",
+                        path="/")
     return response
 
 
