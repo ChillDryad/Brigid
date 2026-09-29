@@ -14,16 +14,14 @@ export function applyTheme(theme) {
     const root = document.documentElement;
 
     // 1. INJECT RAW BASE COLORS (Critical for var(--baseXX) references)
-    if (theme.activePalette && window.HESTIA_PALETTES) {
-        const palette = window.HESTIA_PALETTES[theme.activePalette];
-        if (palette) {
-            Object.keys(palette).forEach(key => {
-                // Inject --base00, --base01, etc.
-                if (key.startsWith('base')) {
-                    root.style.setProperty(`--${key}`, formatColor(palette[key]));
-                }
-            });
-        }
+    const paletteName = theme.activePalette || 'gruvbox-dark';
+    if (window.HESTIA_PALETTES && window.HESTIA_PALETTES[paletteName]) {
+        const palette = window.HESTIA_PALETTES[paletteName];
+        Object.keys(palette).forEach(key => {
+            if (key.startsWith('base')) {
+                root.style.setProperty(`--${key}`, formatColor(palette[key]));
+            }
+        });
     }
 
     // 2. Apply Semantic Colors
