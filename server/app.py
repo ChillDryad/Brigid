@@ -385,6 +385,8 @@ async def callback(request: Request) -> RedirectResponse:
     groups = claims.get("groups", [])
     groups = [groups] if isinstance(groups, str) else groups
     groups = [str(group) for group in groups]
+    import logging as _logging
+    _logging.getLogger("brigid").warning("OIDC groups claim: %r (allowed: %r)", groups, sorted(ALLOWED_GROUPS))
     if ALLOWED_GROUPS and not ALLOWED_GROUPS.intersection(groups):
         raise HTTPException(status_code=403, detail="Your Pocket ID group cannot access Brigid")
     identity, display_name = str(claims["sub"]), str(claims.get("name") or claims.get("preferred_username") or claims["sub"])
