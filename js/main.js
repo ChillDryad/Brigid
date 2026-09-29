@@ -19,9 +19,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     logger.info("Brigid: Booting...");
 
     // 1. Resolve identity before loading role-filtered dashboard data.
-    const currentUser = await fetch("/api/me", { credentials: "same-origin" })
-        .then((response) => response.ok ? response.json() : null)
+    const meResponse = await fetch("/api/me", { credentials: "same-origin" })
         .catch(() => null);
+    if (meResponse && meResponse.status === 401) {
+        window.location.assign("/auth/login");
+        return;
+    }
+    const currentUser = (meResponse && meResponse.ok) ? await meResponse.json() : null;
     setState("user", currentUser);
     const badge = qs("#identityBadge");
     if (badge && currentUser) badge.textContent = currentUser.displayName || currentUser.identity;
