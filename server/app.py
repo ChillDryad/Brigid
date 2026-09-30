@@ -308,6 +308,28 @@ def _first_number(*values: float | None) -> float | None:
     return next((value for value in values if value is not None), None)
 
 
+def _glances_gpu_summary(payload: Any) -> dict[str, Any] | None:
+    """Reduce Glances' optional GPU plugin response to a safe aggregate."""
+    if not isinstance(payload, list):
+        return None
+    gpus = [item for item in payload if isinstance(item, dict)]
+    if not gpus:
+        return None
+
+    def values(key: str) -> list[float]:
+        return [value for item in gpus if (value := _as_number(item.get(key))) is not None]
+
+    utilization, memory, temperatures = values("proc"), values("mem"), values("temperature")
+    names = [str(item["name"]) for item in gpus if item.get("name")]
+    return {
+        "count": len(gpus),
+        "utilizationPercent": sum(utilization) / len(utilization) if utilization else None,
+        "memoryPercent": sum(memory) / len(memory) if memory else None,
+        "temperatureC": max(temperatures, default=None),
+        "names": names,
+    }
+
+
 async def read_glances_homelab_stats() -> dict[str, Any]:
     """Fetch private Glances telemetry and reduce it to household-safe stats."""
     if not glances_configured():
@@ -322,9 +344,11 @@ async def read_glances_homelab_stats() -> dict[str, Any]:
         responses = await asyncio.gather(*[
             client.get(f"{GLANCES_API_URL}/{endpoint}") for endpoint in endpoints
         ])
+        gpu_response = await client.get(f"{GLANCES_API_URL}/gpu")
     for response in responses:
         response.raise_for_status()
     quicklook, cpu_data, mem_data, filesystems, uptime_data, system_data = [response.json() for response in responses]
+    gpu_data = gpu_response.json() if gpu_response.is_success else None
     quicklook = quicklook if isinstance(quicklook, dict) else {}
     cpu_data = cpu_data if isinstance(cpu_data, dict) else {}
     mem_data = mem_data if isinstance(mem_data, dict) else {}
@@ -341,6 +365,7 @@ async def read_glances_homelab_stats() -> dict[str, Any]:
         "diskMount": disk_mount,
         "load": _first_number(_glances_metric(quicklook, "load"), _glances_metric(cpu_data, "load_1")),
         "uptimeSeconds": _glances_uptime_seconds(uptime_data),
+        "gpu": _glances_gpu_summary(gpu_data),
     }
 
 

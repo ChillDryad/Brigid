@@ -123,9 +123,10 @@ legacy read-route formats for compatibility across Komodo releases.
 
 ## Homelab stats via Glances
 
-The **Homelab Stats** card is a compact, administrator-only view of CPU, memory,
-root-disk usage, load, and uptime from Glances. Brigid requests Glances
-server-side; the browser never receives the Glances URL or credentials.
+The **Home** card is a compact, administrator-only view of CPU, memory, GPU
+utilization (when Glances' GPU plugin is available), root-disk usage, load, and
+uptime from Glances. Brigid requests Glances server-side; the browser never
+receives the Glances URL or credentials.
 
 Put Brigid and Glances on the same private Docker network and configure the
 complete Glances API root in `brigid.env`:

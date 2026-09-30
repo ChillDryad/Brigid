@@ -33,8 +33,8 @@ export class HomelabStatsApp extends BaseApp {
                 <div class="homelab-metrics">
                     <div class="homelab-metric" data-homelab-metric="cpu"><span>CPU</span><strong>—</strong><i><b></b></i></div>
                     <div class="homelab-metric" data-homelab-metric="memory"><span>MEM</span><strong>—</strong><i><b></b></i></div>
-                    <div class="homelab-metric" data-homelab-metric="disk"><span>DISK</span><strong>—</strong><i><b></b></i></div>
-                    <div class="homelab-meta"><span data-homelab="uptime">UP —</span><span data-homelab="load">LOAD —</span></div>
+                    <div class="homelab-metric" data-homelab-metric="gpu"><span>GPU</span><strong>—</strong><i><b></b></i></div>
+                    <div class="homelab-meta"><span data-homelab="disk">DISK —</span><span data-homelab="uptime">UP —</span><span data-homelab="load">LOAD —</span></div>
                 </div>
             </div>`;
     }
@@ -50,11 +50,21 @@ export class HomelabStatsApp extends BaseApp {
                 const stats = await response.json();
                 updateMetric(el, "cpu", stats.cpuPercent);
                 updateMetric(el, "memory", stats.memoryPercent);
-                updateMetric(el, "disk", stats.diskPercent);
+                updateMetric(el, "gpu", stats.gpu?.utilizationPercent);
+                el.querySelector('[data-homelab="disk"]').textContent = stats.diskPercent === null || stats.diskPercent === undefined
+                    ? "DISK —"
+                    : `DISK ${Number(stats.diskPercent).toFixed(0)}%`;
                 el.querySelector('[data-homelab="uptime"]').textContent = `UP ${uptime(stats.uptimeSeconds)}`;
                 el.querySelector('[data-homelab="load"]').textContent = stats.load === null || stats.load === undefined
                     ? "LOAD —"
                     : `LOAD ${Number(stats.load).toFixed(1)}`;
+                const gpuMetric = el.querySelector('[data-homelab-metric="gpu"]');
+                if (gpuMetric) {
+                    const gpu = stats.gpu;
+                    gpuMetric.title = gpu
+                        ? `${gpu.names?.join(", ") || `${gpu.count} GPU${gpu.count === 1 ? "" : "s"}`} — memory ${percent(number(gpu.memoryPercent))}${gpu.temperatureC === null || gpu.temperatureC === undefined ? "" : `, ${Number(gpu.temperatureC).toFixed(0)}°C`}`
+                        : "Glances GPU plugin is unavailable";
+                }
                 status.textContent = stats.hostname || "LIVE";
                 status.title = stats.diskMount ? `Disk: ${stats.diskMount}` : "Glances telemetry live";
                 status.classList.add("live");
