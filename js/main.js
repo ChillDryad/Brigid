@@ -38,9 +38,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     // on a 401 redirect that will never occur in that flow.
     const loginButton = qs("#loginBtn");
     const guestInOidcMode = appConfig.oidcEnabled && currentUser?.mode === "default";
+    const authenticatedInOidcMode = appConfig.oidcEnabled && Boolean(currentUser?.identity);
     if (loginButton) {
-        loginButton.hidden = !guestInOidcMode;
-        loginButton.onclick = () => window.location.assign("/auth/login");
+        const loginIcon = loginButton.querySelector("i");
+        loginButton.hidden = !(guestInOidcMode || authenticatedInOidcMode);
+        if (authenticatedInOidcMode) {
+            loginButton.title = "Sign out";
+            loginButton.setAttribute("aria-label", "Sign out");
+            loginIcon?.classList.replace("fa-right-to-bracket", "fa-right-from-bracket");
+            loginButton.onclick = () => window.location.assign("/auth/logout");
+        } else {
+            loginButton.title = "Sign in with Pocket ID";
+            loginButton.setAttribute("aria-label", "Sign in with Pocket ID");
+            loginIcon?.classList.replace("fa-right-from-bracket", "fa-right-to-bracket");
+            loginButton.onclick = () => window.location.assign("/auth/login");
+        }
     }
 
     // 2. Load Data
