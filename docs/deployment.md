@@ -121,6 +121,29 @@ scoped to the intended server. Do not use an administrator key. Brigid calls
 Komodo's `GetSystemStats` read operation server-side and tries the current and
 legacy read-route formats for compatibility across Komodo releases.
 
+## Homelab stats via Glances
+
+The **Homelab Stats** card is a compact, administrator-only view of CPU, memory,
+root-disk usage, load, and uptime from Glances. Brigid requests Glances
+server-side; the browser never receives the Glances URL or credentials.
+
+Put Brigid and Glances on the same private Docker network and configure the
+complete Glances API root in `brigid.env`:
+
+```env
+GLANCES_API_URL=http://glances:61208/api/4
+# Only if Glances authentication is enabled:
+GLANCES_USERNAME=
+GLANCES_PASSWORD=
+# Or use the bearer-token mechanism instead:
+GLANCES_TOKEN=
+```
+
+Do not route Glances through Caddy or expose its API through the public
+Cloudflare tunnel. The default layout pairs this Homelab card with the separate
+**Cloud Lab** Komodo card; set `KOMODO_SERVER` to the Komodo server name for
+your cloud host.
+
 ## NVIDIA GPU metrics
 
 The **NVIDIA GPU Stats** card reads an NVIDIA DCGM Exporter Prometheus endpoint

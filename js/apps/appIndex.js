@@ -6,6 +6,7 @@ import './calendarApp.js';
 import './clockApp.js';
 import './helloWorld.js';
 import './glancesApp.js';
+import './homelabStatsApp.js';
 import './komodoStatsApp.js';
 import './gpuStatsApp.js';
 import './ttcCommuteApp.js';
