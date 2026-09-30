@@ -11,6 +11,66 @@
     <title>Brigid</title>
     <link rel="manifest" href="/manifest.webmanifest">
     <link rel="apple-touch-icon" href="/icons/brigid-180.png">
+
+    <!-- Palette data and critical theme bootstrap must run before styles paint.
+         Returning users get their cached profile theme on the first frame; a
+         dark fallback prevents the browser's default white canvas on first use. -->
+    <script src="js/palettes.js"></script>
+    <style id="critical-theme-fallback">
+        :root {
+            --base00: #181818; --base01: #282828; --base02: #383838;
+            --base03: #585858; --base04: #b8b8b8; --base05: #d8d8d8;
+            --bg-canvas: #181818; --bg-surface: #282828; --bg-highlight: #383838;
+            --text-main: #d8d8d8; --text-muted: #b8b8b8;
+        }
+        html, body { background-color: #181818; color: #d8d8d8; }
+    </style>
+    <script>
+        (() => {
+            const storageKeys = ["BRIGID_DASHBOARD_STATE", "HESTIA_DASHBOARD_STATE", "hestia_theme"];
+            let savedTheme = null;
+            for (const key of storageKeys) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    const parsed = JSON.parse(raw);
+                    savedTheme = parsed?.settings?.theme || parsed?.theme || parsed;
+                    if (savedTheme && typeof savedTheme === "object") break;
+                } catch (_) {
+                    // Invalid/stale local storage must never block first paint.
+                }
+            }
+            if (!savedTheme || typeof savedTheme !== "object") return;
+
+            const root = document.documentElement;
+            const palette = window.HESTIA_PALETTES?.[savedTheme.activePalette];
+            if (palette) {
+                Object.entries(palette).forEach(([key, value]) => {
+                    if (key.startsWith("base")) root.style.setProperty(`--${key}`, `#${String(value).replace("#", "")}`);
+                });
+            }
+
+            const colorKeys = [
+                "bgCanvas", "bgSurface", "bgHighlight", "borderDim", "borderBright",
+                "textMain", "textMuted", "textFaint", "textInverse",
+                "brandPrimary", "brandSecondary", "brandTertiary",
+                "statusError", "statusWarning", "statusSuccess",
+            ];
+            colorKeys.forEach((key) => {
+                if (savedTheme[key]) {
+                    const cssKey = `--${key.replace(/([A-Z])/g, "-$1").toLowerCase()}`;
+                    root.style.setProperty(cssKey, savedTheme[key]);
+                }
+            });
+
+            const canvas = savedTheme.bgCanvas || "var(--base00)";
+            root.style.setProperty("background-color", canvas);
+            const resolvedCanvas = canvas.match(/^var\((--[^)]+)\)$/)?.[1]
+                ? root.style.getPropertyValue(canvas.match(/^var\((--[^)]+)\)$/)[1]).trim()
+                : canvas;
+            if (resolvedCanvas) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", resolvedCanvas);
+        })();
+    </script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel= "stylesheet" href= "https://maxst.icons8.com/vue-static/landings/line-awesome/line-awesome/1.3.0/css/line-awesome.min.css" >
@@ -273,8 +333,6 @@
     </div>
 
     <!-- SCRIPTS -->
-    <!-- We keep palettes separate for now as it is a large data file -->
-    <script src="js/palettes.js"></script>
     <!-- Main Application Entry Point -->
     <script type="module" src="js/main.js"></script>
 </body>
