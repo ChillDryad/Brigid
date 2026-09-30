@@ -9,9 +9,23 @@ const SENSITIVE_KEYS = ["apiKey", "password", "token", "secret", "auth", "key", 
 let saveTimer;
 let serverPersistenceEnabled = true;
 
+function migrateStarterCards() {
+  // Existing installations persisted the first-row GPU card (id 1012).
+  // Reuse that exact slot for Home telemetry so deployed dashboards update
+  // without asking people to reset their personal layout. User-created GPU
+  // cards (different IDs) remain untouched.
+  const starterHomeCard = state.apps.find((app) => app?.id === 1012 && app?.subtype === "gpu-stats");
+  if (starterHomeCard) {
+    starterHomeCard.name = "Home";
+    starterHomeCard.subtype = "homelab-stats";
+    starterHomeCard.data = { ...starterHomeCard.data, interval: starterHomeCard.data?.interval || "15000", adminOnly: true };
+  }
+}
+
 function mergeState(parsed) {
   if (parsed?.apps && Array.isArray(parsed.apps)) {
     state.apps = parsed.apps.filter((app) => !app.data?.adminOnly || state.user?.isAdmin !== false);
+    migrateStarterCards();
   }
   if (parsed?.settings && typeof parsed.settings === "object") {
     state.settings = { ...state.settings, ...parsed.settings };

@@ -27,7 +27,7 @@ export class HomelabStatsApp extends BaseApp {
         return `
             <div class="app-content app-type-homelab-stats">
                 <div class="homelab-header">
-                    <span><i class="fa-solid fa-house-signal"></i> HOMELAB</span>
+                    <span><i class="fa-solid fa-house-signal"></i> HOME</span>
                     <span class="homelab-status">CONNECTING</span>
                 </div>
                 <div class="homelab-metrics">
