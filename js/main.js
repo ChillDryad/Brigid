@@ -19,16 +19,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     logger.info("Brigid: Booting...");
 
     // 1. Resolve identity before loading role-filtered dashboard data.
-    const meResponse = await fetch("/api/me", { credentials: "same-origin" })
-        .catch(() => null);
-    if (meResponse && meResponse.status === 401) {
+    const [meResult, configResult] = await Promise.all([
+        fetch("/api/me", { credentials: "same-origin" }).catch(() => null),
+        fetch("/api/config", { credentials: "same-origin" }).catch(() => null),
+    ]);
+    if (meResult && meResult.status === 401) {
         window.location.assign("/auth/login");
         return;
     }
-    const currentUser = (meResponse && meResponse.ok) ? await meResponse.json() : null;
+    const currentUser = (meResult && meResult.ok) ? await meResult.json() : null;
+    const appConfig = (configResult && configResult.ok) ? await configResult.json() : { oidcEnabled: false };
     setState("user", currentUser);
     const badge = qs("#identityBadge");
     if (badge && currentUser) badge.textContent = currentUser.displayName || currentUser.identity;
+
+    // In shared-dashboard fallback mode, /api/me intentionally returns 200
+    // with mode="default". Surface an explicit login action instead of relying
+    // on a 401 redirect that will never occur in that flow.
+    const loginButton = qs("#loginBtn");
+    const guestInOidcMode = appConfig.oidcEnabled && currentUser?.mode === "default";
+    if (loginButton) {
+        loginButton.hidden = !guestInOidcMode;
+        loginButton.onclick = () => window.location.assign("/auth/login");
+    }
 
     // 2. Load Data
     const savedState = await loadState();
