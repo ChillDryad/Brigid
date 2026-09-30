@@ -164,8 +164,10 @@ function setupColorPicker(id) {
             input.value = colorVar;
             preview.style.background = colorVar;
             if (native) native.value = resolveToHex(colorVar);
-        }, () => {
-            if (native) native.click();
+        }, (customColor) => {
+            input.value = customColor;
+            preview.style.background = customColor;
+            if (native) native.value = resolveToHex(customColor);
         });
     };
 

@@ -112,11 +112,10 @@ function wireUpInputs() {
             openColorPicker(preview, (colorVar) => {
                 // Selected from Palette (saves "var(--base00)")
                 updateSetting(key, colorVar);
-            }, () => {
-                // Clicked "Custom..." -> Open Native Picker
-                // MATCH HTML ID: "native-input-bgCanvas"
-                const native = qs(`#native-input-${key}`);
-                if (native) native.click();
+            }, (customColor) => {
+                // The popover exposes a real tappable native color input so
+                // iOS standalone PWAs can choose arbitrary colors.
+                updateSetting(key, customColor);
             });
         };
     });
