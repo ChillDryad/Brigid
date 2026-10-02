@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { formatColor } from "../utils.js";
+import { formatColor, resolveToHex } from "../utils.js";
 import { createEl } from "../dom.js";
 import { openPopover, closePopover } from "./popover.js";
 
@@ -32,20 +32,27 @@ export function openColorPicker(targetEl, onSelect, onCustom) {
 
     container.appendChild(grid);
 
-    // Footer with Custom Button
+    // Footer with a real native color control.  This must be an actual,
+    // tappable input: iOS Safari commonly ignores .click() on display:none
+    // color inputs, which made custom colors unavailable in standalone PWAs.
     const footer = createEl('div', { class: 'popover-footer' });
-    const customBtn = createEl('button', {
-        class: 'btn',
-        text: 'Custom...',
+    const customInput = createEl('input', {
+        class: 'custom-color-input',
+        attrs: {
+            type: 'color',
+            value: resolveToHex(getComputedStyle(targetEl).backgroundColor),
+            'aria-label': 'Choose a custom color',
+        },
         on: {
-            click: () => {
+            input: (event) => onCustom?.(event.target.value),
+            change: (event) => {
+                onCustom?.(event.target.value);
                 closePopover();
-                if (onCustom) onCustom(); // Opens native picker
-            }
-        }
+            },
+        },
     });
 
-    footer.appendChild(customBtn);
+    footer.appendChild(customInput);
     container.appendChild(footer);
 
     openPopover(targetEl, container, { offsetLeft: -75 });

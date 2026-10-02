@@ -45,12 +45,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (authenticatedInOidcMode) {
             loginButton.title = "Sign out";
             loginButton.setAttribute("aria-label", "Sign out");
-            loginIcon?.classList.replace("fa-right-to-bracket", "fa-right-from-bracket");
+            loginIcon?.classList.replace("fa-right-to-bracket", "fa-left-from-bracket");
             loginButton.onclick = () => window.location.assign("/auth/logout");
         } else {
             loginButton.title = "Sign in with Pocket ID";
             loginButton.setAttribute("aria-label", "Sign in with Pocket ID");
-            loginIcon?.classList.replace("fa-right-from-bracket", "fa-right-to-bracket");
+            loginIcon?.classList.replace("fa-left-from-bracket", "fa-right-to-bracket");
             loginButton.onclick = () => window.location.assign("/auth/login");
         }
     }
@@ -148,6 +148,14 @@ function initInstallExperience() {
 }
 
 function wireUpToolbar() {
+    const refreshBtn = qs('#refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.onclick = () => {
+            refreshBtn.disabled = true;
+            window.location.reload();
+        };
+    }
+
     const editBtn = qs('#editBtn');
     if (editBtn) editBtn.onclick = toggleEditMode;
 

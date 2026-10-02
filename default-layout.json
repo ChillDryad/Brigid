@@ -2,8 +2,8 @@
   "apps": [
     {"id":1010,"name":"Clock","subtype":"clock","type":"static","x":1,"y":1,"cols":4,"rows":2,"data":{"format":"12","mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
     {"id":1013,"name":"TTC Commute","subtype":"ttc-commute","type":"static","x":5,"y":1,"cols":3,"rows":1,"data":{"interval":"120000","mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
-    {"id":1012,"name":"GPU","subtype":"gpu-stats","type":"static","x":8,"y":1,"cols":3,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
-    {"id":1001,"name":"Komodo Server","subtype":"komodo-stats","type":"static","x":5,"y":2,"cols":6,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1012,"name":"Home","subtype":"homelab-stats","type":"static","x":8,"y":1,"cols":3,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":1,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
+    {"id":1001,"name":"Cloud Lab","subtype":"komodo-stats","type":"static","x":5,"y":2,"cols":6,"rows":1,"data":{"interval":"15000","adminOnly":true,"mobileCols":2,"bgColor":"var(--bg-surface)","textColor":"var(--text-main)"}},
     {"id":1002,"name":"Lesflix","subtype":"link","type":"static","x":1,"y":3,"cols":2,"rows":1,"data":{"url":"https://lesflix.dryad.nexus","icon":"film","mobileCols":1,"bgColor":"var(--base0D)","textColor":"var(--base00)"}},
     {"id":1003,"name":"Lesseer","subtype":"link","type":"static","x":3,"y":3,"cols":2,"rows":1,"data":{"url":"https://lesseer.dryad.nexus","icon":"wand-magic-sparkles","mobileCols":1,"bgColor":"var(--base0E)","textColor":"var(--base00)"}},
     {"id":1004,"name":"BookLore","subtype":"link","type":"static","x":5,"y":3,"cols":2,"rows":1,"data":{"url":"https://booklore.dryad.nexus","icon":"book-open","mobileCols":1,"bgColor":"var(--base09)","textColor":"var(--base00)"}},

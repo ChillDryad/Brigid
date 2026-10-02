@@ -7,6 +7,7 @@ Caddy only provides TLS and reverse-proxy routing.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import json
@@ -50,6 +51,10 @@ KOMODO_API_SECRET = os.getenv("KOMODO_API_SECRET", "").strip()
 KOMODO_SERVER = os.getenv("KOMODO_SERVER", "local").strip()
 DEFAULT_LAYOUT_FILE = Path(os.getenv("BRIGID_DEFAULT_LAYOUT_FILE", ROOT / "default-layout.json"))
 GPU_METRICS_URL = os.getenv("GPU_METRICS_URL", "").strip()
+GLANCES_API_URL = os.getenv("GLANCES_API_URL", "").strip().rstrip("/")
+GLANCES_USERNAME = os.getenv("GLANCES_USERNAME", "").strip()
+GLANCES_PASSWORD = os.getenv("GLANCES_PASSWORD", "")
+GLANCES_TOKEN = os.getenv("GLANCES_TOKEN", "").strip()
 
 
 class ProfilePayload(BaseModel):
@@ -244,6 +249,126 @@ def gpu_metrics_configured() -> bool:
     return bool(GPU_METRICS_URL)
 
 
+def glances_configured() -> bool:
+    """Return whether Brigid has a private Glances API endpoint configured."""
+    return bool(GLANCES_API_URL)
+
+
+def _as_number(value: Any) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _glances_metric(payload: dict[str, Any], *keys: str) -> float | None:
+    """Return the first numeric value from a Glances payload."""
+    for key in keys:
+        value: Any = payload
+        for part in key.split("."):
+            if not isinstance(value, dict):
+                value = None
+                break
+            value = value.get(part)
+        number = _as_number(value)
+        if number is not None:
+            return number
+    return None
+
+
+def _glances_disk(filesystems: list[dict[str, Any]]) -> tuple[float | None, str | None]:
+    """Prefer root filesystem usage; otherwise return the fullest real mount."""
+    ignored = {"tmpfs", "devtmpfs", "overlay", "proc", "sysfs", "squashfs", "cgroup", "cgroup2"}
+    candidates = [
+        item for item in filesystems
+        if isinstance(item, dict) and str(item.get("fs_type", "")).lower() not in ignored
+    ]
+    root = next((item for item in candidates if item.get("mnt_point") == "/"), None)
+    selected = root or max(candidates, key=lambda item: _glances_metric(item, "percent") or -1, default=None)
+    if not selected:
+        return None, None
+    return _glances_metric(selected, "percent"), selected.get("mnt_point") or selected.get("device_name")
+
+
+def _glances_uptime_seconds(payload: Any) -> float | None:
+    """Normalize Glances' version-dependent uptime response to seconds."""
+    if isinstance(payload, dict):
+        return _glances_metric(payload, "seconds", "uptime")
+    if isinstance(payload, (int, float)):
+        return float(payload)
+    if isinstance(payload, str):
+        match = re.fullmatch(r"(?:(\d+) day[s]?, )?(\d+):(\d+):(\d+)", payload.strip())
+        if match:
+            days, hours, minutes, seconds = (int(part or 0) for part in match.groups())
+            return float(days * 86400 + hours * 3600 + minutes * 60 + seconds)
+    return None
+
+
+def _first_number(*values: float | None) -> float | None:
+    return next((value for value in values if value is not None), None)
+
+
+def _glances_gpu_summary(payload: Any) -> dict[str, Any] | None:
+    """Reduce Glances' optional GPU plugin response to a safe aggregate."""
+    if not isinstance(payload, list):
+        return None
+    gpus = [item for item in payload if isinstance(item, dict)]
+    if not gpus:
+        return None
+
+    def values(key: str) -> list[float]:
+        return [value for item in gpus if (value := _as_number(item.get(key))) is not None]
+
+    utilization, memory, temperatures = values("proc"), values("mem"), values("temperature")
+    names = [str(item["name"]) for item in gpus if item.get("name")]
+    return {
+        "count": len(gpus),
+        "utilizationPercent": sum(utilization) / len(utilization) if utilization else None,
+        "memoryPercent": sum(memory) / len(memory) if memory else None,
+        "temperatureC": max(temperatures, default=None),
+        "names": names,
+    }
+
+
+async def read_glances_homelab_stats() -> dict[str, Any]:
+    """Fetch private Glances telemetry and reduce it to household-safe stats."""
+    if not glances_configured():
+        raise HTTPException(status_code=503, detail="Homelab statistics are not configured")
+
+    headers = {"Authorization": f"Bearer {GLANCES_TOKEN}"} if GLANCES_TOKEN else {}
+    auth = httpx.BasicAuth(GLANCES_USERNAME, GLANCES_PASSWORD) if GLANCES_USERNAME else None
+    endpoints = ("quicklook", "cpu", "mem", "fs", "uptime", "system")
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(5.0), follow_redirects=False, headers=headers, auth=auth,
+    ) as client:
+        responses = await asyncio.gather(*[
+            client.get(f"{GLANCES_API_URL}/{endpoint}") for endpoint in endpoints
+        ])
+        gpu_response = await client.get(f"{GLANCES_API_URL}/gpu")
+    for response in responses:
+        response.raise_for_status()
+    quicklook, cpu_data, mem_data, filesystems, uptime_data, system_data = [response.json() for response in responses]
+    gpu_data = gpu_response.json() if gpu_response.is_success else None
+    quicklook = quicklook if isinstance(quicklook, dict) else {}
+    cpu_data = cpu_data if isinstance(cpu_data, dict) else {}
+    mem_data = mem_data if isinstance(mem_data, dict) else {}
+    filesystems = filesystems if isinstance(filesystems, list) else []
+    uptime_data = uptime_data if isinstance(uptime_data, dict) else {}
+    system_data = system_data if isinstance(system_data, dict) else {}
+    disk_percent, disk_mount = _glances_disk(filesystems)
+
+    return {
+        "hostname": system_data.get("hostname") or quicklook.get("hostname") or "Homelab",
+        "cpuPercent": _first_number(_glances_metric(quicklook, "cpu"), _glances_metric(cpu_data, "total")),
+        "memoryPercent": _first_number(_glances_metric(quicklook, "mem"), _glances_metric(mem_data, "percent")),
+        "diskPercent": disk_percent,
+        "diskMount": disk_mount,
+        "load": _first_number(_glances_metric(quicklook, "load"), _glances_metric(cpu_data, "load_1")),
+        "uptimeSeconds": _glances_uptime_seconds(uptime_data),
+        "gpu": _glances_gpu_summary(gpu_data),
+    }
+
+
 PROMETHEUS_SAMPLE = re.compile(
     r'^([a-zA-Z_:][a-zA-Z0-9_:]*)(?:\{([^}]*)\})?\s+([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)'
 )
@@ -426,6 +551,7 @@ def configuration() -> dict[str, bool]:
         "profilePersistenceEnabled": OIDC_ENABLED,
         "komodoConfigured": komodo_configured(),
         "gpuMetricsConfigured": gpu_metrics_configured(),
+        "glancesConfigured": glances_configured(),
         "defaultLayoutConfigured": DEFAULT_LAYOUT_FILE.is_file(),
     }
 
@@ -449,6 +575,13 @@ async def komodo_stats(request: Request) -> dict[str, Any]:
 async def gpu_stats(request: Request) -> dict[str, Any]:
     require_admin(request)
     return await read_gpu_stats()
+
+
+@app.get("/api/homelab/stats")
+async def homelab_stats(request: Request) -> dict[str, Any]:
+    """Return a compact, admin-only summary from the private Glances API."""
+    require_admin(request)
+    return await read_glances_homelab_stats()
 
 
 @app.get("/api/default-layout")
